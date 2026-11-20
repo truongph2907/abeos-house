@@ -1,11 +1,10 @@
 /* Chỗ duy nhất để nối Google Sheet. Xem docs/SETUP-GOOGLE-SHEET.md.
-   spreadsheetId đã có. scriptUrl để trống cho đến khi deploy Apps Script.
-   Sheet chưa chia sẻ công khai thì trang dùng thực đơn mẫu trong js/data.js. */
+   spreadsheetId và scriptUrl đã có. Sheet chưa chia sẻ công khai thì trang dùng thực đơn mẫu trong js/data.js. */
 window.App = window.App || {};
 
 App.SHEETS = {
   spreadsheetId: "1urtnj8cjDDgCLhLk6NMQsMuEAOHyIv85Vcuo-5q3Lb8",
-  scriptUrl: ""
+  scriptUrl: "https://script.google.com/macros/s/AKfycbxL7SeKXn_AjoFtrEFFWEIqS0ShnJKNd_Z06wvCADuUSYJioMY7eJViM-q62jX592fSxg/exec"
 };
 
 /* Bản mẫu khi chưa điền spreadsheetId, hoặc khi không tải được sheet. */

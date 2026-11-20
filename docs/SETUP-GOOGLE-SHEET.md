@@ -6,7 +6,7 @@ Mở sheet: https://docs.google.com/spreadsheets/d/1urtnj8cjDDgCLhLk6NMQsMuEAOHy
 
 ID (đã ghi trong `js/config.js`): `1urtnj8cjDDgCLhLk6NMQsMuEAOHyIv85Vcuo-5q3Lb8`
 
-Chưa bật chia sẻ công khai thì trang **vẫn mở được**: hiện 19 món mẫu và một dòng vàng “Không tải được Google Sheet”. Làm các bước dưới để trang đọc sheet thật và ghi đơn.
+Chưa bật chia sẻ công khai thì trang **vẫn mở được**: hiện 19 món mẫu và một dòng vàng “Không tải được Google Sheet”. Link Apps Script đã nằm trong `js/config.js`, nên sau khi share, đặt món sẽ ghi vào tab Orders.
 
 ## 1. Chia sẻ để trang web đọc được
 
@@ -56,17 +56,17 @@ topping: Trân châu đen +8000 | Thạch trái cây +7000
 3. Gmail cá nhân chỉ khoảng **100 email/ngày**. Hết hạn mức thì đơn **vẫn nằm trong tab Orders**; chỉ thiếu thư. Lỗi gửi mail không hủy đơn.
 4. Lần deploy đã xin quyền Gmail. Nếu bạn sửa script rồi deploy lại, cứ Allow nếu Google hỏi tiếp.
 
-## 6. Dán link script vào trang
+## 6. Link script trên trang
 
-`spreadsheetId` đã có trong `js/config.js`. Chỉ dán URL web app vào `scriptUrl`:
+`spreadsheetId` và `scriptUrl` đã có trong `js/config.js`. Web app đang trả `{"ok":true,"service":"abeos-house"}`. Không cần dán lại, trừ khi bạn deploy bản mới và URL đổi.
 
 ```javascript
 App.SHEETS = {
   spreadsheetId: "1urtnj8cjDDgCLhLk6NMQsMuEAOHyIv85Vcuo-5q3Lb8",
-  scriptUrl: "https://script.google.com/macros/s/.../exec"
+  scriptUrl: "https://script.google.com/macros/s/AKfycbxL7SeKXn_AjoFtrEFFWEIqS0ShnJKNd_Z06wvCADuUSYJioMY7eJViM-q62jX592fSxg/exec"
 };
 ```
 
-Đưa file này lên GitHub (merge vào `main`). Đợi GitHub Pages cập nhật, rồi đặt thử một đơn.
+Merge vào `main` rồi đợi GitHub Pages cập nhật trước khi đặt đơn thật.
 
-Đơn thành công thì tab **Orders** có dòng mới, trạng thái `Mới`, và hộp thư có thư nếu đã điền `notify_email`. Trang xác nhận chỉ hiện khi script trả về thành công. Chưa dán `scriptUrl` thì bấm đặt món báo chưa nối sheet, giỏ vẫn còn, không hiện mã đơn giả.
+Đơn thành công thì tab **Orders** có dòng mới, trạng thái `Mới`, và hộp thư có thư nếu đã điền `notify_email`. Trang xác nhận chỉ hiện khi script trả về thành công. Sheet chưa chia sẻ công khai thì thực đơn vẫn là bản mẫu.
