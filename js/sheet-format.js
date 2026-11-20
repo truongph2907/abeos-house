@@ -48,8 +48,18 @@
     });
   }
 
+  function asText(value) {
+    if (value == null) return "";
+    if (typeof value === "boolean") return value ? "true" : "false";
+    if (typeof value === "number") {
+      if (!isFinite(value)) return "";
+      return String(value);
+    }
+    return String(value);
+  }
+
   function parseMoney(value) {
-    var raw = String(value == null ? "" : value).trim().replace(/\s/g, "").replace(/đ/gi, "");
+    var raw = asText(value).trim().replace(/\s/g, "").replace(/đ/gi, "");
     if (!raw) return 0;
     var neg = raw.charAt(0) === "-";
     if (raw.charAt(0) === "+" || raw.charAt(0) === "-") raw = raw.slice(1);
@@ -60,7 +70,7 @@
   }
 
   function driveImageUrl(value) {
-    var raw = String(value || "").trim();
+    var raw = asText(value).trim();
     if (!raw) return "";
     if (/^(img\/|\.\/|\.\.\/)/.test(raw)) return raw;
     var id = "";
@@ -125,6 +135,7 @@
   }
 
   function isYes(value, whenBlank) {
+    if (typeof value === "boolean") return value;
     var v = compactKey(value);
     if (!v) return !!whenBlank;
     if (v === "0" || v === "khong" || v === "an" || v === "hidden" || v === "no" || v === "false" || v === "off") return false;
@@ -219,7 +230,7 @@
 
   function cell(row, map, field) {
     if (map[field] == null) return "";
-    return row[map[field]] == null ? "" : String(row[map[field]]);
+    return asText(row[map[field]]).trim();
   }
 
   function phoneTelFrom(phone) {
@@ -235,7 +246,7 @@
     for (var i = start; i < rows.length; i += 1) {
       var field = shopField(rows[i][0]);
       if (!field) continue;
-      bag[field] = String(rows[i][1] == null ? "" : rows[i][1]).trim();
+      bag[field] = asText(rows[i][1]).trim();
     }
     var phone = bag.phone || "";
     return {
@@ -302,7 +313,7 @@
         else used[id] = true;
       }
       var category = categoryOf(cell(row, map, "category"));
-      var sort = Number(String(cell(row, map, "sort")).replace(/[^\d-]/g, ""));
+      var sort = Number(asText(cell(row, map, "sort")).replace(/[^\d-]/g, ""));
       items.push({
         id: id,
         name: name,
@@ -399,8 +410,10 @@
   App.driveImageUrl = driveImageUrl;
   App.normalizeSpreadsheetId = normalizeSpreadsheetId;
   App.parseOptions = parseOptions;
+  App.shopFromRows = shopFromRows;
   App.shopFromCsv = shopFromCsv;
   App.mergeShop = mergeShop;
+  App.productsFromRows = productsFromRows;
   App.productsFromCsv = productsFromCsv;
   App.lineUnitPrice = lineUnitPrice;
   App.findChoice = findChoice;
