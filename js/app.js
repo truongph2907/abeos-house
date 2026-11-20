@@ -166,11 +166,16 @@
     return parts.join(" · ");
   }
 
+  function photoHtml(item, className) {
+    if (!item || !item.image) return "";
+    return '<img class="' + className + '" src="' + esc(item.image) + '" alt="">';
+  }
+
   function cardHtml(item) {
     const popular = item.popular ? ' <span class="pill">Hay gọi</span>' : "";
     return (
       '<article class="item-card">' +
-        '<div class="item-mark" style="background:' + esc(item.accent) + '" aria-hidden="true">' + esc(item.emoji) + "</div>" +
+        photoHtml(item, "item-photo") +
         "<div>" +
           '<p class="item-kicker">' + esc(categoryLabel(item.category)) + popular + "</p>" +
           "<h3>" + esc(item.name) + "</h3>" +
@@ -312,6 +317,7 @@
     sheet.innerHTML =
       '<div class="grabber" aria-hidden="true"></div>' +
       '<div class="modal-head">' +
+        '<div class="modal-photo">' + photoHtml(item, "item-photo") + "</div>" +
         '<div><p class="item-kicker">' + esc(categoryLabel(item.category)) + "</p>" +
         '<h2 id="modal-title">' + esc(item.name) + "</h2></div>" +
         '<button type="button" class="close-btn" data-close aria-label="Đóng">×</button>' +
@@ -373,8 +379,7 @@
       lineId: uid(),
       itemId: item.id,
       name: item.name,
-      emoji: item.emoji,
-      accent: item.accent,
+      image: item.image || "",
       size: sizeId,
       sizeLabel: sizeText(item, sizeId),
       sugar: sugar ? sugar.id : "",
@@ -477,20 +482,23 @@
     if (lead) lead.textContent = cartCount(cart) + " món, lưu trên máy này.";
     const lines = cart.map(function (line) {
       return (
-        '<article class="cart-line">' +
-          "<h3>" + esc(line.name) + "</h3>" +
-          '<p class="muted">' + esc(optionSummary(line)) + "</p>" +
-          '<div class="line-actions">' +
-            '<div class="qty">' +
-              '<button type="button" data-cart-action="dec" data-line-id="' + esc(line.lineId) + '" aria-label="Giảm số lượng">−</button>' +
-              "<span>" + esc(line.quantity) + "</span>" +
-              '<button type="button" data-cart-action="inc" data-line-id="' + esc(line.lineId) + '" aria-label="Tăng số lượng">+</button>' +
+        '<article class="cart-line' + (line.image ? " has-photo" : "") + '">' +
+          (line.image ? '<img class="line-photo" src="' + esc(line.image) + '" alt="">' : "") +
+          "<div>" +
+            "<h3>" + esc(line.name) + "</h3>" +
+            '<p class="muted">' + esc(optionSummary(line)) + "</p>" +
+            '<div class="line-actions">' +
+              '<div class="qty">' +
+                '<button type="button" data-cart-action="dec" data-line-id="' + esc(line.lineId) + '" aria-label="Giảm số lượng">−</button>' +
+                "<span>" + esc(line.quantity) + "</span>" +
+                '<button type="button" data-cart-action="inc" data-line-id="' + esc(line.lineId) + '" aria-label="Tăng số lượng">+</button>' +
+              "</div>" +
+              "<strong class=\"price\">" + formatVnd(lineTotal(line)) + "</strong>" +
             "</div>" +
-            "<strong class=\"price\">" + formatVnd(lineTotal(line)) + "</strong>" +
-          "</div>" +
-          '<div class="line-actions">' +
-            '<span class="muted">' + formatVnd(line.unitPrice) + " × " + esc(line.quantity) + "</span>" +
-            '<button type="button" class="text-btn" data-cart-action="remove" data-line-id="' + esc(line.lineId) + '">Xóa</button>' +
+            '<div class="line-actions">' +
+              '<span class="muted">' + formatVnd(line.unitPrice) + " × " + esc(line.quantity) + "</span>" +
+              '<button type="button" class="text-btn" data-cart-action="remove" data-line-id="' + esc(line.lineId) + '">Xóa</button>' +
+            "</div>" +
           "</div>" +
         "</article>"
       );
@@ -498,7 +506,7 @@
     const fee = deliveryFeeFor("delivery");
     root.innerHTML =
       lines +
-      '<div class="card summary" style="padding:16px;border-radius:20px">' +
+      '<div class="card summary">' +
         '<div class="totals"><div><span>Tạm tính</span><strong>' + formatVnd(subtotal(cart)) + "</strong></div></div>" +
         '<p class="muted" style="margin-top:8px">Phí giao hàng ' + formatVnd(fee) + " được cộng nếu chọn giao ở bước thanh toán. Mang về và dùng tại quán không tính phí.</p>" +
         '<p class="stack-actions"><a class="btn btn-primary" href="checkout.html">Thanh toán</a><a class="btn btn-ghost" href="menu.html">Thêm món</a></p>' +
@@ -553,8 +561,8 @@
       return "<div><span>" + esc(line.quantity) + " × " + esc(line.name) + "</span><strong>" + formatVnd(lineTotal(line)) + "</strong></div>";
     }).join("");
     return (
-      '<div class="card summary" style="padding:16px;border-radius:20px">' +
-        "<h2 style=\"font-family:var(--display);margin:0 0 10px\">Đơn của bạn</h2>" +
+      '<div class="card summary">' +
+        '<h2 class="summary-title">Đơn của bạn</h2>' +
         '<div class="totals">' + lines +
           "<div><span>Tạm tính</span><strong>" + formatVnd(subtotal(cart)) + "</strong></div>" +
           "<div><span>Phí giao hàng</span><strong>" + formatVnd(fee) + "</strong></div>" +

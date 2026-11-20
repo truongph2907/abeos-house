@@ -30,7 +30,8 @@ Khi thêm món, hộp chọn có cỡ S/M/L, đường, đá (với đồ uống
 
 - `js/config.js` — `App.SHOP`: tên, địa chỉ, điện thoại, giờ mở cửa, phí giao, tài khoản ngân hàng. Số tài khoản hiện tại là **placeholder**.
 - `js/data.js` — 19 món mẫu (12 đồ uống, 7 đồ ăn). Giá trên thẻ là cỡ M; cỡ S trừ `5.000đ`, cỡ L cộng `5.000đ`.
-- `css/styles.css` — màu và kiểu, biến ở `:root`.
+- `css/styles.css` — màu và kiểu, biến ở `:root`. Giao diện theo quán hẻm: mái hiên vàng đỏ, bảng hiệu, ảnh món thật.
+- `img/` — ảnh món từ Wikimedia Commons (giấy phép tự do). Đường dẫn tương đối `img/….jpg`.
 
 Đơn chỉ được lưu trên máy khách. Trang xác nhận không gửi đơn lên máy chủ.
 

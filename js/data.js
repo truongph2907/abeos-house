@@ -53,6 +53,7 @@ App.TOPPINGS = {
 App.MENU = [
   {
     id: "cf-sua-da",
+    image: "img/cf-sua-da.jpg",
     name: "Cà phê sữa đá",
     category: "drink",
     price: 29000,
@@ -64,6 +65,7 @@ App.MENU = [
   },
   {
     id: "cf-den-da",
+    image: "img/cf-den-da.jpg",
     name: "Cà phê đen đá",
     category: "drink",
     price: 25000,
@@ -74,6 +76,7 @@ App.MENU = [
   },
   {
     id: "bac-xiu",
+    image: "img/bac-xiu.jpg",
     name: "Bạc xỉu",
     category: "drink",
     price: 32000,
@@ -84,6 +87,7 @@ App.MENU = [
   },
   {
     id: "cf-muoi",
+    image: "img/cf-muoi.jpg",
     name: "Cà phê muối",
     category: "drink",
     price: 35000,
@@ -94,6 +98,7 @@ App.MENU = [
   },
   {
     id: "tra-dao",
+    image: "img/tra-dao.jpg",
     name: "Trà đào cam sả",
     category: "drink",
     price: 39000,
@@ -105,6 +110,7 @@ App.MENU = [
   },
   {
     id: "ts-tran-chau",
+    image: "img/ts-tran-chau.jpg",
     name: "Trà sữa trân châu",
     category: "drink",
     price: 45000,
@@ -116,6 +122,7 @@ App.MENU = [
   },
   {
     id: "ts-khoai-mon",
+    image: "img/ts-khoai-mon.jpg",
     name: "Trà sữa khoai môn",
     category: "drink",
     price: 45000,
@@ -126,6 +133,7 @@ App.MENU = [
   },
   {
     id: "matcha-latte",
+    image: "img/matcha-latte.jpg",
     name: "Matcha latte",
     category: "drink",
     price: 49000,
@@ -137,6 +145,7 @@ App.MENU = [
   },
   {
     id: "cacao-da",
+    image: "img/cacao-da.jpg",
     name: "Cacao sữa đá",
     category: "drink",
     price: 35000,
@@ -147,6 +156,7 @@ App.MENU = [
   },
   {
     id: "sinh-to-bo",
+    image: "img/sinh-to-bo.jpg",
     name: "Sinh tố bơ",
     category: "drink",
     price: 42000,
@@ -157,6 +167,7 @@ App.MENU = [
   },
   {
     id: "ep-cam",
+    image: "img/ep-cam.jpg",
     name: "Nước ép cam",
     category: "drink",
     price: 35000,
@@ -167,6 +178,7 @@ App.MENU = [
   },
   {
     id: "sua-chua",
+    image: "img/sua-chua.jpg",
     name: "Sữa chua việt quất",
     category: "drink",
     price: 38000,
@@ -177,6 +189,7 @@ App.MENU = [
   },
   {
     id: "banh-mi",
+    image: "img/banh-mi.jpg",
     name: "Bánh mì thịt nướng",
     category: "food",
     price: 35000,
@@ -189,6 +202,7 @@ App.MENU = [
   },
   {
     id: "xoi-man",
+    image: "img/xoi-man.jpg",
     name: "Xôi mặn thập cẩm",
     category: "food",
     price: 30000,
@@ -200,6 +214,7 @@ App.MENU = [
   },
   {
     id: "com-tam",
+    image: "img/com-tam.jpg",
     name: "Cơm tấm sườn bì",
     category: "food",
     price: 55000,
@@ -212,6 +227,7 @@ App.MENU = [
   },
   {
     id: "mi-cay",
+    image: "img/mi-cay.jpg",
     name: "Mì cay bò",
     category: "food",
     price: 59000,
@@ -223,6 +239,7 @@ App.MENU = [
   },
   {
     id: "khoai-tay",
+    image: "img/khoai-tay.jpg",
     name: "Khoai tây lắc phô mai",
     category: "food",
     price: 29000,
@@ -234,6 +251,7 @@ App.MENU = [
   },
   {
     id: "banh-flan",
+    image: "img/banh-flan.jpg",
     name: "Bánh flan caramel",
     category: "food",
     price: 22000,
@@ -244,6 +262,7 @@ App.MENU = [
   },
   {
     id: "banh-chuoi",
+    image: "img/banh-chuoi.jpg",
     name: "Bánh chuối nướng",
     category: "food",
     price: 25000,
