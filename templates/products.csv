@@ -1,0 +1,61 @@
+﻿mã,tên,mô tả,nhóm,ảnh,giá,lựa chọn,đang bán,thứ tự,nổi bật,gợi ý ghi chú
+cf-sua-da,Cà phê sữa đá,"Phin đậm pha chậm, sữa đặc và đá. Ly quen nhất quán.",Đồ uống,img/cf-sua-da.jpg,29000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,1,có,
+cf-den-da,Cà phê đen đá,"Đắng vừa, hậu ngọt, không sữa.",Đồ uống,img/cf-den-da.jpg,25000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,2,,
+bac-xiu,Bạc xỉu,"Nhiều sữa, ít cà phê — nhẹ và béo.",Đồ uống,img/bac-xiu.jpg,32000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,3,,
+cf-muoi,Cà phê muối,"Kem muối mặn ngọt, cà phê đậm nằm bên dưới.",Đồ uống,img/cf-muoi.jpg,35000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,4,,
+tra-dao,Trà đào cam sả,"Trà đào, cam tươi và sả. Uống lạnh là đúng.",Đồ uống,img/tra-dao.jpg,39000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,5,có,
+ts-tran-chau,Trà sữa trân châu,Trà sữa béo. Thêm trân châu nếu muốn dai.,Đồ uống,img/ts-tran-chau.jpg,45000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,6,có,
+ts-khoai-mon,Trà sữa khoai môn,"Khoai môn tím, béo, ngọt dịu.",Đồ uống,img/ts-khoai-mon.jpg,45000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,7,,
+matcha-latte,Matcha latte,"Matcha đánh với sữa tươi, đắng nhẹ.",Đồ uống,img/matcha-latte.jpg,49000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,8,có,
+cacao-da,Cacao sữa đá,"Cacao đậm, sữa và đá xay nhẹ.",Đồ uống,img/cacao-da.jpg,35000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,9,,
+sinh-to-bo,Sinh tố bơ,"Bơ sáp xay sữa đặc, sánh và mát.",Đồ uống,img/sinh-to-bo.jpg,42000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,10,,
+ep-cam,Nước ép cam,"Cam vắt, không thêm nước đường.",Đồ uống,img/ep-cam.jpg,35000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,11,,
+sua-chua,Sữa chua việt quất,"Sữa chua nhà làm, mứt việt quất chua ngọt.",Đồ uống,img/sua-chua.jpg,38000,"size: Ly nhỏ -5000 | Ly vừa 0 | Ly lớn +5000
+sugar: 0% | 30% | 50% | 70% | 100%
+ice: Không đá | Ít đá | Bình thường | Nhiều đá
+topping: Trân châu đen +8000 | Trân châu trắng +8000 | Thạch trái cây +7000 | Pudding trứng +8000 | Kem cheese +12000",có,12,,
+banh-mi,Bánh mì thịt nướng,"Thịt nướng, đồ chua, rau và nước sốt.",Đồ ăn,img/banh-mi.jpg,35000,"size: Phần nhỏ -5000 | Phần vừa 0 | Phần lớn +5000
+topping: Thêm trứng ốp la +8000 | Thêm chả +10000 | Thêm pate +6000",có,13,có,"Ví dụ: không rau, thêm ớt"
+xoi-man,Xôi mặn thập cẩm,"Xôi dẻo, chà bông, lạp xưởng, mỡ hành.",Đồ ăn,img/xoi-man.jpg,30000,"size: Phần nhỏ -5000 | Phần vừa 0 | Phần lớn +5000
+topping: Thêm trứng ốp la +8000 | Thêm chả +10000 | Thêm pate +6000",có,14,,Ví dụ: ít mỡ hành
+com-tam,Cơm tấm sườn bì,"Sườn nướng, bì, mỡ hành, nước mắm chua ngọt.",Đồ ăn,img/com-tam.jpg,55000,"size: Phần nhỏ -5000 | Phần vừa 0 | Phần lớn +5000
+topping: Thêm trứng ốp la +8000 | Thêm chả +10000 | Thêm pate +6000",có,15,có,"Ví dụ: không bì, thêm nước mắm"
+mi-cay,Mì cay bò,"Mì cay mức vừa, bò và rau. Ghi chú nếu muốn ít cay.",Đồ ăn,img/mi-cay.jpg,59000,"size: Phần nhỏ -5000 | Phần vừa 0 | Phần lớn +5000
+topping: Thêm trứng +8000 | Thêm bò +20000 | Phô mai +8000",có,16,,"Ví dụ: cay ít, không nấm"
+khoai-tay,Khoai tây lắc phô mai,"Khoai chiên giòn, lắc bột phô mai.",Đồ ăn,img/khoai-tay.jpg,29000,"size: Phần nhỏ -5000 | Phần vừa 0 | Phần lớn +5000
+topping: Thêm phô mai +8000",có,17,,Ví dụ: ít bột phô mai
+banh-flan,Bánh flan caramel,"Flan mịn, caramel đắng nhẹ.",Đồ ăn,img/banh-flan.jpg,22000,size: Phần nhỏ -5000 | Phần vừa 0 | Phần lớn +5000,có,18,,
+banh-chuoi,Bánh chuối nướng,"Chuối già nướng, nước cốt dừa.",Đồ ăn,img/banh-chuoi.jpg,25000,size: Phần nhỏ -5000 | Phần vừa 0 | Phần lớn +5000,có,19,,Ví dụ: ít dừa

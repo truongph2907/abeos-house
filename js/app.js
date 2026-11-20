@@ -65,27 +65,21 @@
     return found ? found.label : "";
   }
 
-  function toppingCatalog(item) {
-    if (!item || !item.toppings || !App.TOPPINGS) return [];
-    return App.TOPPINGS[item.toppings] || [];
-  }
-
-  function sizeOf(id) {
-    return (App.SIZES || []).find(function (size) { return size.id === id; }) || App.SIZES[1];
+  function itemOptions(item) {
+    if (window.App && App.ensureOptions) return App.ensureOptions(item);
+    return (item && item.options) || { sizes: [], sugar: [], ice: [], toppings: [] };
   }
 
   function sizeText(item, sizeId) {
-    const size = sizeOf(sizeId);
-    return item && item.category === "food" ? size.food : size.drink;
+    const options = itemOptions(item);
+    const found = (options.sizes || []).find(function (size) { return size.id === sizeId || size.label === sizeId; });
+    return found ? found.label : sizeId;
   }
 
   function unitPrice(item, sizeId, toppingIds) {
-    const size = sizeOf(sizeId);
-    const chosen = toppingCatalog(item).filter(function (topping) {
-      return toppingIds.indexOf(topping.id) !== -1;
-    });
-    const extra = chosen.reduce(function (sum, topping) { return sum + topping.price; }, 0);
-    return Math.max(0, item.price + size.extra + extra);
+    itemOptions(item);
+    if (window.App && App.lineUnitPrice) return App.lineUnitPrice(item, sizeId, toppingIds);
+    return Number(item.price) || 0;
   }
 
   function loadJson(key, fallback) {
@@ -181,7 +175,7 @@
           "<h3>" + esc(item.name) + "</h3>" +
           "<p>" + esc(item.blurb) + "</p>" +
           '<div class="item-row">' +
-            '<div><div class="price">' + formatVnd(item.price) + '</div><div class="price-note">Cỡ M</div></div>' +
+            '<div><div class="price">' + formatVnd(item.price) + '</div><div class="price-note">Cỡ vừa</div></div>' +
             '<button type="button" class="add-btn" data-open-item="' + esc(item.id) + '">Thêm</button>' +
           "</div>" +
         "</div>" +
@@ -299,18 +293,22 @@
     const modal = ensureModal();
     const sheet = $("#modal-sheet");
     const isDrink = item.category === "drink";
-    const sizes = (App.SIZES || []).map(function (size) {
+    const options = itemOptions(item);
+    const sizeDefault = App.defaultChoiceId(options.sizes, function (size) { return Number(size.extra) === 0; });
+    const sugarDefault = App.defaultChoiceId(options.sugar, function (level) { return level.label === "70%"; });
+    const iceDefault = App.defaultChoiceId(options.ice, function (level) { return fold(level.label) === "binh thuong"; });
+    const sizes = (options.sizes || []).map(function (size) {
       const delta = size.extra ? " " + (size.extra > 0 ? "+" : "−") + formatVnd(Math.abs(size.extra)) : "";
-      return choiceHtml("size", size.id, sizeText(item, size.id) + delta, size.id === "M");
+      return choiceHtml("size", size.id, size.label + delta, size.id === sizeDefault);
     }).join("");
-    const sugar = (App.SUGAR || []).map(function (level) {
-      return choiceHtml("sugar", level.id, level.label, level.id === "70");
+    const sugar = (options.sugar || []).map(function (level) {
+      return choiceHtml("sugar", level.id, level.label, level.id === sugarDefault);
     }).join("");
-    const ice = (App.ICE || []).map(function (level) {
-      return choiceHtml("ice", level.id, level.label, level.id === "normal");
+    const ice = (options.ice || []).map(function (level) {
+      return choiceHtml("ice", level.id, level.label, level.id === iceDefault);
     }).join("");
-    const toppings = toppingCatalog(item).map(function (topping) {
-      return choiceHtml("topping", topping.id, topping.name + " +" + formatVnd(topping.price), false);
+    const toppings = (options.toppings || []).map(function (topping) {
+      return choiceHtml("topping", topping.id, topping.label + " +" + formatVnd(topping.price), false);
     }).join("");
     const hint = item.noteHint || (isDrink ? "Ví dụ: ít ngọt, không đá viên" : "Ghi chú cho quán");
 
@@ -324,14 +322,10 @@
       "</div>" +
       '<div class="modal-body">' +
         "<p>" + esc(item.blurb) + "</p>" +
-        '<div class="option-block"><h3>' + (isDrink ? "Cỡ ly" : "Khẩu phần") + '</h3><div class="choice-row">' + sizes + "</div></div>" +
-        (isDrink
-          ? '<div class="option-block"><h3>Đường</h3><div class="choice-row">' + sugar + "</div></div>" +
-            '<div class="option-block"><h3>Đá</h3><div class="choice-row">' + ice + "</div></div>"
-          : "") +
-        (toppings
-          ? '<div class="option-block"><h3>Topping</h3><div class="choice-row">' + toppings + "</div></div>"
-          : "") +
+        (sizes ? '<div class="option-block"><h3>' + (isDrink ? "Cỡ ly" : "Khẩu phần") + '</h3><div class="choice-row">' + sizes + "</div></div>" : "") +
+        (sugar ? '<div class="option-block"><h3>Đường</h3><div class="choice-row">' + sugar + "</div></div>" : "") +
+        (ice ? '<div class="option-block"><h3>Đá</h3><div class="choice-row">' + ice + "</div></div>" : "") +
+        (toppings ? '<div class="option-block"><h3>Topping</h3><div class="choice-row">' + toppings + "</div></div>" : "") +
         '<div class="option-block"><h3>Số lượng</h3><div class="qty">' +
           '<button type="button" data-qty-dec aria-label="Giảm số lượng">−</button>' +
           '<span data-qty-value>1</span>' +
@@ -363,14 +357,15 @@
   function readSelection(sheet) {
     const item = findItem(sheet.dataset.itemId);
     if (!item) return null;
+    const options = itemOptions(item);
     const sizeInput = $('input[name="size"]:checked', sheet);
     const sugarInput = $('input[name="sugar"]:checked', sheet);
     const iceInput = $('input[name="ice"]:checked', sheet);
     const toppingIds = $all('input[name="topping"]:checked', sheet).map(function (input) { return input.value; });
-    const sizeId = sizeInput ? sizeInput.value : "M";
-    const sugar = sugarInput ? (App.SUGAR || []).find(function (level) { return level.id === sugarInput.value; }) : null;
-    const ice = iceInput ? (App.ICE || []).find(function (level) { return level.id === iceInput.value; }) : null;
-    const toppings = toppingCatalog(item).filter(function (topping) {
+    const sizeId = sizeInput ? sizeInput.value : ((options.sizes[0] && options.sizes[0].id) || "");
+    const sugar = sugarInput ? (options.sugar || []).find(function (level) { return level.id === sugarInput.value; }) : null;
+    const ice = iceInput ? (options.ice || []).find(function (level) { return level.id === iceInput.value; }) : null;
+    const toppings = (options.toppings || []).filter(function (topping) {
       return toppingIds.indexOf(topping.id) !== -1;
     });
     const note = ($("[data-note]", sheet).value || "").trim().slice(0, 140);
@@ -387,7 +382,7 @@
       ice: ice ? ice.id : "",
       iceLabel: ice ? ice.label : "",
       toppingIds: toppings.map(function (topping) { return topping.id; }),
-      toppingLabels: toppings.map(function (topping) { return topping.name; }),
+      toppingLabels: toppings.map(function (topping) { return topping.label || topping.name; }),
       note: note,
       quantity: quantity,
       unitPrice: unitPrice(item, sizeId, toppingIds)
@@ -596,9 +591,11 @@
     }
     const info = shop();
     const bank = info.bank || {};
+    const scriptReady = window.App && App.SHEETS && String(App.SHEETS.scriptUrl || "").trim();
     root.innerHTML =
       '<form id="checkout-form" class="checkout-layout" novalidate>' +
         "<div>" +
+          (scriptReady ? "" : '<p class="notice">Chưa nối đơn tới Google Sheet. Đặt món sẽ báo lỗi cho đến khi dán link Apps Script trong js/config.js.</p>') +
           '<label class="field">Họ tên<input name="name" autocomplete="name" maxlength="80" required></label>' +
           '<p class="field-error" data-error="name"></p>' +
           '<label class="field">Số điện thoại<input name="phone" inputmode="tel" autocomplete="tel" maxlength="16" required></label>' +
@@ -627,16 +624,6 @@
     form.addEventListener("change", refreshCheckoutSummary);
     form.addEventListener("submit", submitOrder);
     refreshCheckoutSummary();
-  }
-
-  function makeOrderId(orders) {
-    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let id = "";
-    do {
-      id = "AB-";
-      for (let i = 0; i < 4; i += 1) id += alphabet[Math.floor(Math.random() * alphabet.length)];
-    } while (orders[id]);
-    return id;
   }
 
   function submitOrder(event) {
@@ -671,31 +658,43 @@
       valid = false;
     }
     if (!valid) return;
-    const orders = loadOrders();
-    const fee = deliveryFeeFor(method);
-    const order = {
-      id: makeOrderId(orders),
-      createdAt: new Date().toISOString(),
-      customer: { name: name, phone: prettyPhone(phone) },
+    const button = form.querySelector("[type=submit]");
+    if (button.disabled) return;
+    button.disabled = true;
+    const previousLabel = button.textContent;
+    button.textContent = "Đang gửi đơn…";
+    const payload = {
+      customerName: name,
+      phone: phone,
       fulfillment: method,
       address: method === "delivery" ? address : "",
-      note: note,
       payment: payment,
-      lines: cart,
-      subtotal: subtotal(cart),
-      deliveryFee: fee,
-      total: subtotal(cart) + fee
+      note: note,
+      lines: cart.map(function (line) {
+        return {
+          id: line.itemId,
+          size: line.size,
+          sugar: line.sugarLabel || "",
+          ice: line.iceLabel || "",
+          toppings: line.toppingLabels || [],
+          qty: line.quantity,
+          note: line.note || ""
+        };
+      })
     };
-    try {
+    const sender = window.App && App.postOrder ? App.postOrder(payload) : Promise.reject(new Error("Không gửi được đơn."));
+    sender.then(function (order) {
+      const orders = loadOrders();
       orders[order.id] = order;
       localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
       localStorage.setItem(CART_KEY, "[]");
       updateBadges([]);
-    } catch (error) {
-      setFieldError(form, "form", "Không lưu được đơn trên máy này. Hãy tắt chế độ chặn bộ nhớ rồi thử lại.");
-      return;
-    }
-    location.href = "order.html?id=" + encodeURIComponent(order.id);
+      location.href = "order.html?id=" + encodeURIComponent(order.id);
+    }).catch(function (error) {
+      button.disabled = false;
+      button.textContent = previousLabel;
+      setFieldError(form, "form", (error && error.message) || "Không gửi được đơn. Giỏ vẫn còn.");
+    });
   }
 
   function copyText(text, button) {
@@ -747,10 +746,12 @@
       : "";
     root.innerHTML =
       '<article class="ticket">' +
-        '<p class="eyebrow">Đơn đã lưu trên máy này</p>' +
+        '<p class="eyebrow">' + (order.sent ? "Đã gửi cho quán" : "Đơn lưu trên máy này") + "</p>" +
         '<h2 class="order-code">' + esc(order.id) + "</h2>" +
         '<p class="muted">' + esc(time) + " · " + esc(shop().name || "") + "</p>" +
-        "<p>Đưa mã này cho quán khi nhận món, hoặc giữ trang để đối chiếu. Đơn chưa được gửi lên máy chủ.</p>" +
+        "<p>" + (order.sent
+          ? "Đơn đã gửi cho quán và được ghi vào Google Sheet. Giữ mã này khi nhận món."
+          : "Đưa mã này cho quán khi nhận món. Đơn này chưa được gửi lên Google Sheet.") + "</p>" +
         "<p><strong>" + esc(order.customer.name) + "</strong> · " + esc(order.customer.phone) + "<br>" +
           esc(FULFILLMENT[order.fulfillment] || order.fulfillment) +
           (order.address ? " · " + esc(order.address) : "") + "<br>" +
@@ -799,8 +800,13 @@
     });
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
+  function boot() {
+    const ready = window.App && App.loadCatalog ? App.loadCatalog() : Promise.resolve();
+    ready.then(init, init);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
 
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") closeModal();

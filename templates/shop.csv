@@ -1,0 +1,15 @@
+﻿key,value
+name,A Béo's House
+tagline,"Đồ uống và đồ ăn nhà làm, ấm như ghé nhà người quen."
+address,"42 Nguyễn Văn Linh, Tân Thuận Tây, Quận 7, TP. Hồ Chí Minh"
+phone,0901 234 567
+phoneTel,+84901234567
+hours,"7:00 – 22:00, tất cả các ngày"
+deliveryFee,15000
+bankName,Vietcombank
+accountNumber,0000000000
+accountName,A BEO HOUSE
+branch,Chi nhánh mẫu
+bankNote,Số tài khoản này chỉ là placeholder. Chủ quán thay số thật ở tab Shop trước khi khách chuyển khoản.
+bankPlaceholder,true
+notify_email,
