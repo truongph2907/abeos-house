@@ -198,6 +198,22 @@
       hero.src = info.heroImage;
       if (info.heroCaption) hero.alt = info.heroCaption;
     }
+    $all(".brand-mark").forEach(function (mark) {
+      if (info.logo) {
+        mark.removeAttribute("aria-hidden");
+        mark.textContent = "";
+        var img = document.createElement("img");
+        img.className = "brand-logo";
+        img.src = info.logo;
+        img.alt = info.name || "A Béo's House";
+        mark.appendChild(img);
+      } else {
+        mark.textContent = "AB";
+        mark.setAttribute("aria-hidden", "true");
+      }
+    });
+    var icon = document.querySelector('link[rel="icon"]');
+    if (icon && info.logo) icon.href = info.logo;
     $all("[data-bind-phone]").forEach(function (el) {
       if (el.hasAttribute("data-phone-prefix")) {
         const prefix = el.getAttribute("data-phone-prefix");

@@ -22,6 +22,7 @@ Sửa giá, tên, ẩn món (`đang bán` = `ẩn`) trực tiếp trên tab **Pr
 | `tagline` | Câu mô tả dưới tên quán | `Đồ uống và đồ ăn nhà làm, ấm như ghé nhà người quen.` |
 | `heroImage` | Ảnh lớn (link Drive hoặc `img/….jpg`) | `img/cf-sua-da.jpg` |
 | `heroCaption` | Chữ dưới ảnh | `Cà phê sữa đá` |
+| `logo` | Logo trên đầu trang. Link Drive hoặc `img/….jpg`. Để trống thì giữ vòng tròn **AB** | |
 
 ## 2. Ô lựa chọn
 
