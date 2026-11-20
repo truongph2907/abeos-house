@@ -1,9 +1,10 @@
 /* Chỗ duy nhất để nối Google Sheet. Xem docs/SETUP-GOOGLE-SHEET.md.
-   Để trống nếu muốn dùng thông tin và thực đơn mẫu bên dưới / js/data.js. */
+   spreadsheetId đã có. scriptUrl để trống cho đến khi deploy Apps Script.
+   Sheet chưa chia sẻ công khai thì trang dùng thực đơn mẫu trong js/data.js. */
 window.App = window.App || {};
 
 App.SHEETS = {
-  spreadsheetId: "",
+  spreadsheetId: "1urtnj8cjDDgCLhLk6NMQsMuEAOHyIv85Vcuo-5q3Lb8",
   scriptUrl: ""
 };
 

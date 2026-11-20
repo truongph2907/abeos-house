@@ -28,7 +28,7 @@ Khi thêm món, hộp chọn có cỡ S/M/L, đường, đá (với đồ uống
 
 ## Sửa quán và thực đơn
 
-- `js/config.js` — dán `spreadsheetId` và `scriptUrl`. `App.SHOP` chỉ là bản mẫu khi chưa nối sheet.
+- `js/config.js` — `spreadsheetId` đã điền. Chỉ cần dán `scriptUrl` sau khi deploy Apps Script. `App.SHOP` là bản mẫu khi sheet chưa chia sẻ công khai hoặc tải lỗi.
 - `js/data.js` — 19 món mẫu (12 đồ uống, 7 đồ ăn), dùng khi sheet trống hoặc lỗi.
 - Cách tạo Google Sheet, Apps Script và email báo đơn: [docs/SETUP-GOOGLE-SHEET.md](docs/SETUP-GOOGLE-SHEET.md).
 - `css/styles.css` — màu và kiểu, biến ở `:root`. Giao diện theo quán hẻm: mái hiên vàng đỏ, bảng hiệu, ảnh món thật.
