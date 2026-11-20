@@ -89,6 +89,11 @@
       tenquan: "name",
       tagline: "tagline",
       khauhieu: "tagline",
+      heroimage: "heroImage",
+      anhbia: "heroImage",
+      anhdau: "heroImage",
+      herocaption: "heroCaption",
+      chuthichanh: "heroCaption",
       address: "address",
       diachi: "address",
       phone: "phone",
@@ -236,6 +241,8 @@
     return {
       name: bag.name || "",
       tagline: bag.tagline || "",
+      heroImage: driveImageUrl(bag.heroImage || ""),
+      heroCaption: bag.heroCaption || "",
       address: bag.address || "",
       phone: phone,
       phoneTel: bag.phoneTel || phoneTelFrom(phone),
@@ -254,6 +261,15 @@
 
   function shopFromCsv(text) {
     return shopFromRows(parseCsv(text));
+  }
+
+  function mergeShop(base, sheetShop) {
+    var shop = Object.assign({}, base, sheetShop || {});
+    shop.bank = Object.assign({}, (base && base.bank) || {}, (sheetShop && sheetShop.bank) || {});
+    if (!sheetShop || !sheetShop.heroImage) shop.heroImage = base.heroImage || "";
+    if (!sheetShop || !sheetShop.heroCaption) shop.heroCaption = base.heroCaption || "";
+    if (!sheetShop || !sheetShop.tagline) shop.tagline = base.tagline || "";
+    return shop;
   }
 
   function slugId(name, used) {
@@ -384,6 +400,7 @@
   App.normalizeSpreadsheetId = normalizeSpreadsheetId;
   App.parseOptions = parseOptions;
   App.shopFromCsv = shopFromCsv;
+  App.mergeShop = mergeShop;
   App.productsFromCsv = productsFromCsv;
   App.lineUnitPrice = lineUnitPrice;
   App.findChoice = findChoice;

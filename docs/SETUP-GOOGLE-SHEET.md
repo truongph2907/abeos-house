@@ -15,6 +15,14 @@ Chưa bật chia sẻ công khai thì trang **vẫn mở được**: hiện 19 m
 
 Sửa giá, tên, ẩn món (`đang bán` = `ẩn`) trực tiếp trên tab **Products**. Cột **thứ tự** số nhỏ hiện trước. Tab **Orders** đang chỉ có hàng tiêu đề; đơn mới tự thêm phía dưới.
 
+Ảnh và chữ trên trang chủ nằm ở tab **Shop**. Để trống thì trang giữ bản mẫu:
+
+| key | Việc | Mẫu |
+| --- | --- | --- |
+| `tagline` | Câu mô tả dưới tên quán | `Đồ uống và đồ ăn nhà làm, ấm như ghé nhà người quen.` |
+| `heroImage` | Ảnh lớn (link Drive hoặc `img/….jpg`) | `img/cf-sua-da.jpg` |
+| `heroCaption` | Chữ dưới ảnh | `Cà phê sữa đá` |
+
 ## 2. Ô lựa chọn
 
 Cột `lựa chọn` là một ô nhiều dòng (trong sheet bấm Alt+Enter để xuống dòng):

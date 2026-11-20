@@ -11,6 +11,8 @@ App.SHEETS = {
 App.SHOP = {
   name: "A Béo's House",
   tagline: "Đồ uống và đồ ăn nhà làm, ấm như ghé nhà người quen.",
+  heroImage: "img/cf-sua-da.jpg",
+  heroCaption: "Cà phê sữa đá",
   address: "42 Nguyễn Văn Linh, Tân Thuận Tây, Quận 7, TP. Hồ Chí Minh",
   phone: "0901 234 567",
   phoneTel: "+84901234567",

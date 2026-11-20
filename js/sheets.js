@@ -49,8 +49,10 @@
     }
   }
 
+  var SAMPLE_SHOP = JSON.parse(JSON.stringify(App.SHOP));
+
   function applyCatalog(shop, menu) {
-    if (shop) App.SHOP = shop;
+    if (shop) App.SHOP = App.mergeShop(SAMPLE_SHOP, shop);
     App.MENU = menu;
     var seen = {};
     var categories = [];

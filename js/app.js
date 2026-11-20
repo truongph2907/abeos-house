@@ -191,8 +191,13 @@
         el.textContent = formatVnd(info.deliveryFee || 0);
         return;
       }
-      if (info[key] != null) el.textContent = info[key];
+      if (info[key] != null && String(info[key]) !== "") el.textContent = info[key];
     });
+    var hero = document.querySelector(".polaroid img");
+    if (hero && info.heroImage) {
+      hero.src = info.heroImage;
+      if (info.heroCaption) hero.alt = info.heroCaption;
+    }
     $all("[data-bind-phone]").forEach(function (el) {
       if (el.hasAttribute("data-phone-prefix")) {
         const prefix = el.getAttribute("data-phone-prefix");
