@@ -102,6 +102,9 @@
       heroimage: "heroImage",
       anhbia: "heroImage",
       anhdau: "heroImage",
+      logo: "logo",
+      logourl: "logo",
+      anhlogo: "logo",
       herocaption: "heroCaption",
       chuthichanh: "heroCaption",
       address: "address",
@@ -254,6 +257,7 @@
       tagline: bag.tagline || "",
       heroImage: driveImageUrl(bag.heroImage || ""),
       heroCaption: bag.heroCaption || "",
+      logo: driveImageUrl(bag.logo || ""),
       address: bag.address || "",
       phone: phone,
       phoneTel: bag.phoneTel || phoneTelFrom(phone),
@@ -279,6 +283,7 @@
     shop.bank = Object.assign({}, (base && base.bank) || {}, (sheetShop && sheetShop.bank) || {});
     if (!sheetShop || !sheetShop.heroImage) shop.heroImage = base.heroImage || "";
     if (!sheetShop || !sheetShop.heroCaption) shop.heroCaption = base.heroCaption || "";
+    if (!sheetShop || !sheetShop.logo) shop.logo = (base && base.logo) || "";
     if (!sheetShop || !sheetShop.tagline) shop.tagline = base.tagline || "";
     return shop;
   }
