@@ -70,7 +70,7 @@
 
   function csvUrl(id, sheetName) {
     return "https://docs.google.com/spreadsheets/d/" + encodeURIComponent(id) +
-      "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(sheetName);
+      "/gviz/tq?tqx=out:csv&headers=1&sheet=" + encodeURIComponent(sheetName);
   }
 
   function fetchText(url) {
