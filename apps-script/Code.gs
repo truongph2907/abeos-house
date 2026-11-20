@@ -12,8 +12,17 @@
  */
 var ORDER_HEADERS = ["mã đơn", "thời gian", "khách", "điện thoại", "nhận món", "địa chỉ", "món", "tạm tính", "phí giao", "tổng", "thanh toán", "ghi chú", "trạng thái"];
 
-function doGet() {
-  return json_({ ok: true, service: "abeos-house" });
+function doGet(e) {
+  var code = e && e.parameter ? String(e.parameter.order || "").trim() : "";
+  if (!code) return json_({ ok: true, service: "abeos-house" });
+  try {
+    var orders = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Orders");
+    var found = orders ? readOrderByCode_(orders, code) : null;
+    if (!found) return json_({ ok: true, found: false });
+    return json_({ ok: true, order: found });
+  } catch (error) {
+    return json_({ ok: false, error: String(error && error.message ? error.message : error) });
+  }
 }
 
 function doPost(e) {
@@ -25,6 +34,11 @@ function doPost(e) {
     var orders = ss.getSheetByName("Orders");
     if (!orders) throw new Error("Không thấy tab Orders.");
     ensureOrderHeaders_(orders);
+    var requested = String(body.id || "").trim();
+    if (/^AB-[A-Z0-9]{4}$/.test(requested)) {
+      var existing = readOrderByCode_(orders, requested);
+      if (existing) return json_({ ok: true, order: existing, duplicate: true, mail: "skipped" });
+    }
     var built = buildOrder_(body, shop, products, existingCodes_(orders));
     orders.appendRow(built.row);
     var mail = "skipped";
@@ -33,7 +47,7 @@ function doPost(e) {
     } catch (mailError) {
       mail = "failed";
     }
-    return json_({ ok: true, order: built.order, mail: mail });
+    return json_({ ok: true, order: built.order, duplicate: false, mail: mail });
   } catch (error) {
     return json_({ ok: false, error: String(error && error.message ? error.message : error) });
   }
@@ -293,11 +307,16 @@ function buildOrder_(body, shop, productsById, existingCodes) {
   var subtotal = lines.reduce(function (sum, line) { return sum + line.unitPrice * line.quantity; }, 0);
   var deliveryFee = fulfillment === "delivery" ? Number(shop.deliveryFee) || 0 : 0;
   var total = subtotal + deliveryFee;
-  var id = makeCode_(existingCodes);
-  var createdAt = new Date().toISOString();
+  var requested = String(body.id || "").trim();
+  var id = /^AB-[A-Z0-9]{4}$/.test(requested) ? requested : makeCode_(existingCodes);
+  existingCodes[id] = true;
+  var now = new Date();
+  var createdAt = now.toISOString();
+  var placedAt = formatInVietnam_(now);
   var order = {
     id: id,
     createdAt: createdAt,
+    placedAt: placedAt,
     customer: { name: name, phone: phone },
     fulfillment: fulfillment,
     address: fulfillment === "delivery" ? address : "",
@@ -313,7 +332,7 @@ function buildOrder_(body, shop, productsById, existingCodes) {
     order: order,
     row: [
       id,
-      new Date(createdAt),
+      placedAt,
       name,
       phone,
       fulfillmentLabel_(fulfillment),
@@ -337,6 +356,70 @@ function describeLine_(line) {
   if (line.toppingLabels && line.toppingLabels.length) bits.push(line.toppingLabels.join(", "));
   if (line.note) bits.push("Ghi chú: " + line.note);
   return line.quantity + " × " + line.name + (bits.length ? " (" + bits.join(", ") + ")" : "");
+}
+
+function formatInVietnam_(date) {
+  var zone = "Asia/Ho_Chi_Minh";
+  var pattern = "dd/MM/yyyy HH:mm:ss";
+  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    return Utilities.formatDate(date, zone, pattern);
+  }
+  return new Date(date).toISOString();
+}
+
+function labelToFulfillment_(label) {
+  var v = fold_(label);
+  if (v === "giao hang" || v === "delivery") return "delivery";
+  if (v === "mang ve" || v === "pickup") return "pickup";
+  if (v === "dung tai quan" || v === "dinein") return "dinein";
+  return String(label || "");
+}
+
+function labelToPayment_(label) {
+  var v = fold_(label);
+  if (v === "tien mat khi nhan" || v === "cash") return "cash";
+  if (v === "chuyen khoan" || v === "transfer") return "transfer";
+  return String(label || "");
+}
+
+function orderFromRow_(row) {
+  var subtotal = Number(row[7]) || 0;
+  var itemsText = String(row[6] || "");
+  var when = row[1];
+  var createdAt = when instanceof Date ? when.toISOString() : String(when || "");
+  return {
+    id: String(row[0] || "").trim(),
+    createdAt: createdAt,
+    placedAt: createdAt,
+    customer: { name: String(row[2] || ""), phone: String(row[3] || "") },
+    fulfillment: labelToFulfillment_(row[4]),
+    address: String(row[5] || ""),
+    note: String(row[11] || ""),
+    payment: labelToPayment_(row[10]),
+    lines: itemsText ? [{
+      name: itemsText,
+      quantity: 1,
+      unitPrice: subtotal,
+      sizeLabel: "",
+      sugarLabel: "",
+      iceLabel: "",
+      toppingLabels: [],
+      note: ""
+    }] : [],
+    subtotal: subtotal,
+    deliveryFee: Number(row[8]) || 0,
+    total: Number(row[9]) || 0,
+    sent: true
+  };
+}
+
+function readOrderByCode_(sheet, code) {
+  var want = String(code || "").trim();
+  var rows = sheet.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i += 1) {
+    if (String(rows[i][0] || "").trim() === want) return orderFromRow_(rows[i]);
+  }
+  return null;
 }
 
 function makeCode_(existing) {
@@ -389,6 +472,7 @@ function notifyOrder_(ss, shop, order) {
     return "<li>" + escapeHtml_(describeLine_(line)) + " — " + escapeHtml_(formatVnd_(line.unitPrice * line.quantity)) + "</li>";
   }).join("");
   var html = "<h2>Đơn " + escapeHtml_(order.id) + "</h2>" +
+    "<p><b>Thời gian:</b> " + escapeHtml_(order.placedAt || "") + "</p>" +
     "<p><b>Khách:</b> " + escapeHtml_(order.customer.name) + "<br><b>Điện thoại:</b> " + escapeHtml_(order.customer.phone) + "</p>" +
     "<p><b>Nhận món:</b> " + escapeHtml_(fulfillmentLabel_(order.fulfillment)) +
     (order.address ? "<br><b>Địa chỉ:</b> " + escapeHtml_(order.address) : "") + "</p>" +
@@ -400,6 +484,7 @@ function notifyOrder_(ss, shop, order) {
     '<p><a href="' + escapeHtml_(link) + '">Mở Google Sheet</a></p>';
   var plain = [
     "Đơn " + order.id,
+    order.placedAt ? "Thời gian: " + order.placedAt : "",
     "Khách: " + order.customer.name,
     "Điện thoại: " + order.customer.phone,
     "Nhận món: " + fulfillmentLabel_(order.fulfillment),

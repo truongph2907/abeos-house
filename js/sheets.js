@@ -137,33 +137,91 @@
     });
   };
 
+  function parseBody(text) {
+    if (!text || /^\s*</.test(text)) return null;
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function postOnce(url, payload) {
+    var controller = typeof AbortController === "function" ? new AbortController() : null;
+    var timer = controller ? setTimeout(function () { controller.abort(); }, 25000) : 0;
+    var opts = {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+      redirect: "follow"
+    };
+    if (controller) opts.signal = controller.signal;
+    return fetch(url, opts).then(function (res) {
+      return res.text();
+    }).then(parseBody).catch(function () {
+      return null;
+    }).finally(function () {
+      if (timer) clearTimeout(timer);
+    });
+  }
+
+  function lookupOrder(url, id) {
+    var join = url.indexOf("?") >= 0 ? "&" : "?";
+    return fetch(url + join + "order=" + encodeURIComponent(id), {
+      redirect: "follow",
+      cache: "no-store"
+    }).then(function (res) {
+      return res.text();
+    }).then(parseBody).catch(function () {
+      return null;
+    });
+  }
+
+  function pollOrder(url, id) {
+    var waits = [800, 1600, 3200, 5000];
+    var index = 0;
+    var sawAbsent = false;
+    function step() {
+      if (index >= waits.length) {
+        if (sawAbsent) {
+          throw new Error("Không thấy đơn trên sheet. Giỏ vẫn còn. Bấm đặt món sẽ gửi lại cùng mã " + id + ".");
+        }
+        throw new Error("Không đọc được phản hồi. Đơn có thể đã được ghi. Kiểm tra tab Orders trước khi đặt lại. Bấm lại sẽ dùng cùng mã " + id + ".");
+      }
+      var wait = waits[index];
+      index += 1;
+      return new Promise(function (resolve) { setTimeout(resolve, wait); }).then(function () {
+        return lookupOrder(url, id);
+      }).then(function (data) {
+        if (data && data.order && data.order.id) {
+          data.order.sent = true;
+          return data.order;
+        }
+        if (data && data.service && !data.order && data.found !== false) {
+          throw new Error("Script chưa có bản tra cứu đơn. Nếu đơn đã vào sheet, đừng đặt lại cho đến khi cập nhật Code.gs. Bấm lại sau đó sẽ dùng cùng mã " + id + ".");
+        }
+        if (data && data.found === false) sawAbsent = true;
+        return step();
+      });
+    }
+    return step();
+  }
+
   App.postOrder = function (payload) {
     var url = sheetsConfig().scriptUrl;
     if (!url) {
       return Promise.reject(new Error("Chưa nối đơn tới Google Sheet. Chủ quán cần dán link Apps Script trong js/config.js."));
     }
-    return fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
-      redirect: "follow"
-    }).then(function (res) {
-      return res.text();
-    }).then(function (text) {
-      var data;
-      try {
-        data = JSON.parse(text);
-      } catch (error) {
-        throw new Error("Quán không phản hồi. Đơn chưa được gửi, giỏ vẫn còn.");
+    if (!payload.id) payload.id = "AB-PENDING";
+    return postOnce(url, payload).then(function (data) {
+      if (data && data.ok === false) {
+        throw new Error(data.error || "Không gửi được đơn. Giỏ vẫn còn.");
       }
-      if (!data || data.ok !== true || !data.order || !data.order.id) {
-        throw new Error((data && data.error) || "Không gửi được đơn. Giỏ vẫn còn.");
+      if (data && data.ok === true && data.order && data.order.id) {
+        data.order.sent = true;
+        return data.order;
       }
-      data.order.sent = true;
-      return data.order;
-    }).catch(function (error) {
-      if (error && error.message && !/Failed to fetch|NetworkError|Load failed|abort/i.test(error.message)) throw error;
-      throw new Error("Không gửi được đơn. Kiểm tra mạng rồi thử lại. Giỏ vẫn còn.");
+      return pollOrder(url, payload.id);
     });
   };
 })();

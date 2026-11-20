@@ -3,6 +3,7 @@
 
   const CART_KEY = "abeos-house:cart";
   const ORDERS_KEY = "abeos-house:orders";
+  const PENDING_ORDER_KEY = "abeos-house:pending-order-id";
 
   const FULFILLMENT = {
     delivery: "Giao hàng",
@@ -647,6 +648,18 @@
     refreshCheckoutSummary();
   }
 
+  function pendingOrderId() {
+    try {
+      const existing = sessionStorage.getItem(PENDING_ORDER_KEY);
+      if (existing && /^AB-[A-Z0-9]{4}$/.test(existing)) return existing;
+    } catch (error) { /* bộ nhớ riêng tư */ }
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let id = "AB-";
+    for (let i = 0; i < 4; i += 1) id += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+    try { sessionStorage.setItem(PENDING_ORDER_KEY, id); } catch (error) { /* bỏ qua */ }
+    return id;
+  }
+
   function submitOrder(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -679,12 +692,14 @@
       valid = false;
     }
     if (!valid) return;
+    const orderId = pendingOrderId();
     const button = form.querySelector("[type=submit]");
     if (button.disabled) return;
     button.disabled = true;
     const previousLabel = button.textContent;
     button.textContent = "Đang gửi đơn…";
     const payload = {
+      id: orderId,
       customerName: name,
       phone: phone,
       fulfillment: method,
@@ -709,6 +724,7 @@
       orders[order.id] = order;
       localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
       localStorage.setItem(CART_KEY, "[]");
+      try { sessionStorage.removeItem(PENDING_ORDER_KEY); } catch (error) { /* bỏ qua */ }
       updateBadges([]);
       location.href = "order.html?id=" + encodeURIComponent(order.id);
     }).catch(function (error) {
@@ -746,7 +762,7 @@
     }
     const when = new Date(order.createdAt);
     const time = Number.isNaN(when.getTime())
-      ? ""
+      ? String(order.placedAt || order.createdAt || "")
       : when.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" });
     const lines = (order.lines || []).map(function (line) {
       return "<div><span>" + esc(line.quantity) + " × " + esc(line.name) +
