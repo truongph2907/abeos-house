@@ -188,7 +188,7 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   bottom: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background: var(--enamel-deep);
   border-top: 4px solid var(--awning);
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
@@ -197,14 +197,24 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .tabbar a {
   text-decoration: none;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   font-weight: 700;
+  line-height: 1.15;
   color: #d9f3df;
-  padding: 6px 0 4px;
+  padding: 6px 2px 4px;
   border-radius: 12px;
 }
 
+.tabbar a { position: relative; }
+
 .tabbar a svg { margin: 0 auto 2px; }
+
+.tabbar .badge {
+  position: absolute;
+  top: 0;
+  right: 6px;
+  margin-left: 0;
+}
 
 .tabbar a.is-active {
   background: var(--awning);
@@ -457,7 +467,7 @@ h1, .page-intro h1, .section-head h2, .summary h2, .order-code {
 
 .count-line { margin: 0; color: var(--muted); }
 
-.item-card, .cart-line, .ticket, .empty, .card {
+.item-card, .cart-line, .ticket, .empty, .card, .history-card {
   background: var(--paper);
   border: 2px solid var(--enamel);
   border-radius: 16px;
@@ -660,6 +670,35 @@ h1, .page-intro h1, .section-head h2, .summary h2, .order-code {
 .modal-footer .price { color: var(--awning); font-size: 1.45rem; }
 
 .cart-line { padding: 12px; margin-bottom: 12px; }
+
+.history-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.history-open {
+  display: block;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.history-open p { margin: 4px 0 0; }
+
+.history-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.history-meta strong { font-size: 1.05rem; }
+
+.history-card .price { font-size: 1.15rem; }
 
 .cart-line.has-photo {
   display: grid;
