@@ -65,6 +65,17 @@ topping: Trân châu đen +8000 | Thạch trái cây +7000
 3. Gmail cá nhân chỉ khoảng **100 email/ngày**. Hết hạn mức thì đơn **vẫn nằm trong tab Orders**; chỉ thiếu thư. Lỗi gửi mail không hủy đơn.
 4. Lần deploy đã xin quyền Gmail. Nếu bạn sửa script rồi deploy lại, cứ Allow nếu Google hỏi tiếp.
 
+## Cập nhật script, giữ nguyên URL
+
+Khi có bản `Code.gs` mới (tra cứu đơn, giờ Việt Nam):
+
+1. Trên sheet: **Extensions → Apps Script**.
+2. Thay toàn bộ `Code.gs` bằng file mới trong repo. Nếu chưa có `appsscript.json`, thêm file đó với `timeZone` là `Asia/Ho_Chi_Minh`. **Save**.
+3. **Deploy → Manage deployments → bút chì → Version: New version → Deploy**.
+4. URL `/exec` không đổi. Không sửa `scriptUrl` trong `js/config.js`.
+
+Trang tự tạo mã `AB-XXXX` trước khi gửi. Nếu trình duyệt nhận trang HTML thay vì JSON (hay gặp khi đăng nhập nhiều tài khoản Google), trang hỏi lại `?order=mã` vài lần. Đơn đã ghi thì hiện xác nhận. Bấm đặt lại dùng cùng mã, nên không thêm dòng mới và không gửi thêm email. Script cũ chưa có tra cứu thì trang báo kiểm tra tab Orders, không kết luận là đơn chưa gửi.
+
 ## 6. Link script trên trang
 
 `spreadsheetId` và `scriptUrl` đã có trong `js/config.js`. Web app đang trả `{"ok":true,"service":"abeos-house"}`. Không cần dán lại, trừ khi bạn deploy bản mới và URL đổi.
