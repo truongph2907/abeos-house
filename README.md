@@ -23,6 +23,7 @@ Mở http://localhost:8765/abeos-house/
 - `cart.html` — giỏ hàng
 - `checkout.html` — thông tin nhận và thanh toán
 - `order.html` — xác nhận đơn
+- `orders.html` — đơn đã đặt trên máy này (Đơn của tôi)
 
 Khi thêm món, hộp chọn có cỡ S/M/L, đường, đá (với đồ uống), topping, số lượng và ghi chú.
 

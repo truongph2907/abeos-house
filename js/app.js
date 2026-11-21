@@ -3,7 +3,10 @@
 
   const CART_KEY = "abeos-house:cart";
   const ORDERS_KEY = "abeos-house:orders";
+  const HISTORY_KEY = "abeos.orders.v1";
   const PENDING_ORDER_KEY = "abeos-house:pending-order-id";
+  const FLASH_KEY = "abeos-house:flash";
+  const HISTORY_LIMIT = 50;
 
   const FULFILLMENT = {
     delivery: "Giao hàng",
@@ -129,12 +132,195 @@
     return Number.isFinite(fee) ? fee : 0;
   }
 
+  function loadHistory() {
+    const parsed = loadJson(HISTORY_KEY, []);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(function (order) { return order && order.id; });
+  }
+
+  function saveHistory(list) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, HISTORY_LIMIT)));
+    updateBadges();
+  }
+
   function updateBadges(cart) {
     const count = cartCount(cart || loadCart());
     $all("[data-cart-count]").forEach(function (el) {
       el.textContent = String(count);
       el.classList.toggle("is-zero", count === 0);
     });
+    const orders = loadHistory().length;
+    $all("[data-order-count]").forEach(function (el) {
+      el.textContent = String(orders);
+      el.classList.toggle("is-zero", orders === 0);
+    });
+  }
+
+  function vietnamClock(value) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    try {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Ho_Chi_Minh",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hourCycle: "h23"
+      }).formatToParts(date);
+      function part(type) {
+        const found = parts.find(function (item) { return item.type === type; });
+        return found ? found.value : "";
+      }
+      return part("day") + "/" + part("month") + "/" + part("year") + " " + part("hour") + ":" + part("minute") + ":" + part("second");
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function displayTime(order) {
+    const placed = order && order.placedAt ? String(order.placedAt) : "";
+    if (placed && !/^\d{4}-\d{2}-\d{2}T/.test(placed)) return placed;
+    return vietnamClock(order && order.createdAt) || placed;
+  }
+
+  function snapshotLine(line, unitPriceOverride) {
+    const quantity = Math.max(1, Math.min(20, Number(line.quantity || line.qty) || 1));
+    const price = unitPriceOverride != null ? Number(unitPriceOverride) : Number(line.unitPrice) || 0;
+    return {
+      itemId: line.itemId || line.id || "",
+      name: line.name || "",
+      image: line.image || "",
+      size: line.size || "",
+      sizeLabel: line.sizeLabel || "",
+      sugar: line.sugar || "",
+      sugarLabel: line.sugarLabel || "",
+      ice: line.ice || "",
+      iceLabel: line.iceLabel || "",
+      toppingIds: (line.toppingIds || []).slice(),
+      toppingLabels: (line.toppingLabels || []).slice(),
+      note: line.note || "",
+      quantity: quantity,
+      unitPrice: Number.isFinite(price) ? price : 0
+    };
+  }
+
+  function snapshotLines(cart, order) {
+    const source = cart && cart.length ? cart : ((order && order.lines) || []);
+    const priced = order && Array.isArray(order.lines) ? order.lines : [];
+    const sameShape = source.length && priced.length === source.length && priced.every(function (line) {
+      return line && line.itemId && line.unitPrice != null;
+    });
+    return source.map(function (line, index) {
+      const override = sameShape ? priced[index].unitPrice : null;
+      return snapshotLine(line, override);
+    });
+  }
+
+  function rememberOrder(order, cart) {
+    if (!order || !order.id) return;
+    const record = {
+      id: String(order.id),
+      createdAt: order.createdAt || new Date().toISOString(),
+      placedAt: displayTime(order) || vietnamClock(new Date()),
+      customer: {
+        name: (order.customer && order.customer.name) || "",
+        phone: (order.customer && order.customer.phone) || ""
+      },
+      address: order.address || "",
+      fulfillment: order.fulfillment || "",
+      payment: order.payment || "",
+      note: order.note || "",
+      lines: snapshotLines(cart, order),
+      subtotal: Number(order.subtotal) || 0,
+      deliveryFee: Number(order.deliveryFee) || 0,
+      total: Number(order.total) || 0
+    };
+    const rest = loadHistory().filter(function (item) { return item.id !== record.id; });
+    saveHistory([record].concat(rest));
+  }
+
+  function historySummary(record) {
+    const parts = (record.lines || []).map(function (line) {
+      return (line.quantity || 1) + " × " + (line.name || "Món");
+    });
+    if (!parts.length) return "Không có món";
+    if (parts.length <= 3) return parts.join(", ");
+    return parts.slice(0, 2).join(", ") + " và " + (parts.length - 2) + " món nữa";
+  }
+
+  function setFlash(message) {
+    try { sessionStorage.setItem(FLASH_KEY, message); } catch (error) { /* bộ nhớ riêng tư */ }
+  }
+
+  function consumeFlash() {
+    try {
+      const message = sessionStorage.getItem(FLASH_KEY) || "";
+      if (message) sessionStorage.removeItem(FLASH_KEY);
+      return message;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function choiceByIdOrLabel(list, id, label) {
+    return (list || []).find(function (choice) {
+      return (id && (choice.id === id || choice.label === id)) ||
+        (label && (choice.id === label || choice.label === label || choice.name === label));
+    }) || null;
+  }
+
+  function readdOrder(record) {
+    const cart = loadCart();
+    let added = 0;
+    let skipped = 0;
+    (record.lines || []).forEach(function (saved) {
+      const item = findItem(saved.itemId);
+      if (!item) {
+        skipped += 1;
+        return;
+      }
+      const options = itemOptions(item);
+      const size = choiceByIdOrLabel(options.sizes, saved.size, saved.sizeLabel) || (options.sizes || [])[0] || null;
+      const sugar = choiceByIdOrLabel(options.sugar, saved.sugar, saved.sugarLabel);
+      const ice = choiceByIdOrLabel(options.ice, saved.ice, saved.iceLabel);
+      const toppingIds = [];
+      const toppingLabels = [];
+      (options.toppings || []).forEach(function (topping) {
+        const wanted = (saved.toppingIds || []).concat(saved.toppingLabels || []);
+        const name = topping.label || topping.name;
+        if (wanted.indexOf(topping.id) !== -1 || wanted.indexOf(name) !== -1) {
+          toppingIds.push(topping.id);
+          toppingLabels.push(name);
+        }
+      });
+      const line = {
+        lineId: uid(),
+        itemId: item.id,
+        name: item.name,
+        image: item.image || "",
+        size: size ? size.id : "",
+        sizeLabel: size ? size.label : "",
+        sugar: sugar ? sugar.id : "",
+        sugarLabel: sugar ? sugar.label : "",
+        ice: ice ? ice.id : "",
+        iceLabel: ice ? ice.label : "",
+        toppingIds: toppingIds,
+        toppingLabels: toppingLabels,
+        note: String(saved.note || "").slice(0, 140),
+        quantity: Math.max(1, Math.min(20, Number(saved.quantity) || 1)),
+        unitPrice: unitPrice(item, size ? size.id : "", toppingIds)
+      };
+      const sig = signature(line);
+      const existing = cart.find(function (row) { return signature(row) === sig; });
+      if (existing) existing.quantity = Math.min(20, existing.quantity + line.quantity);
+      else cart.push(line);
+      added += 1;
+    });
+    if (added) saveCart(cart);
+    return { added: added, skipped: skipped };
   }
 
   function itemHaystack(item) {
@@ -497,6 +683,7 @@
       return;
     }
     if (lead) lead.textContent = cartCount(cart) + " món, lưu trên máy này.";
+    const flash = consumeFlash();
     const lines = cart.map(function (line) {
       return (
         '<article class="cart-line' + (line.image ? " has-photo" : "") + '">' +
@@ -522,6 +709,7 @@
     }).join("");
     const fee = deliveryFeeFor("delivery");
     root.innerHTML =
+      (flash ? '<p class="notice" role="status">' + esc(flash) + "</p>" : "") +
       lines +
       '<div class="card summary">' +
         '<div class="totals"><div><span>Tạm tính</span><strong>' + formatVnd(subtotal(cart)) + "</strong></div></div>" +
@@ -720,6 +908,7 @@
     };
     const sender = window.App && App.postOrder ? App.postOrder(payload) : Promise.reject(new Error("Không gửi được đơn."));
     sender.then(function (order) {
+      try { rememberOrder(order, cart); } catch (error) { /* lịch sử đầy hoặc bị chặn */ }
       const orders = loadOrders();
       orders[order.id] = order;
       localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
@@ -802,6 +991,7 @@
         "</div>" +
         bankBlock +
         '<p class="stack-actions"><a class="btn btn-primary" href="menu.html">Đặt thêm</a>' +
+        '<a class="btn btn-ghost" href="orders.html?id=' + encodeURIComponent(order.id) + '">Đơn của tôi</a>' +
         '<a class="btn btn-ghost" data-bind-phone href="">Gọi quán</a></p>' +
       "</article>";
     bindShop();
@@ -810,6 +1000,122 @@
         copyText(button.getAttribute("data-copy"), button);
       });
     });
+  }
+
+  function renderHistory() {
+    const root = $("#orders-app");
+    if (!root) return;
+    const params = new URLSearchParams(location.search);
+    const selected = params.get("id");
+    const list = loadHistory();
+    if (selected) {
+      renderHistoryDetail(root, list.find(function (order) { return order.id === selected; }) || null);
+      return;
+    }
+    const lead = $("#orders-lead");
+    if (lead) {
+      lead.textContent = list.length
+        ? "Chỉ lưu trên trình duyệt này. Đổi máy hoặc xóa dữ liệu duyệt web thì không còn."
+        : "Chưa có đơn nào trên máy này.";
+    }
+    if (!list.length) {
+      root.innerHTML =
+        '<div class="empty"><h2>Chưa có đơn</h2><p>Đơn đã gửi thành công sẽ hiện ở đây, mới nhất trước.</p>' +
+        '<p class="stack-actions" style="justify-content:center"><a class="btn btn-primary" href="menu.html">Mở thực đơn</a></p></div>';
+      return;
+    }
+    const cards = list.map(function (order) {
+      return (
+        '<article class="history-card">' +
+          '<a class="history-open" href="orders.html?id=' + encodeURIComponent(order.id) + '">' +
+            '<div class="history-meta"><strong>' + esc(order.id) + '</strong><span class="price">' + formatVnd(order.total) + "</span></div>" +
+            '<p class="muted">' + esc(order.placedAt || "") + "</p>" +
+            "<p>" + esc(historySummary(order)) + "</p>" +
+          "</a>" +
+          '<button type="button" class="text-btn" data-history-delete="' + esc(order.id) + '">Xóa</button>' +
+        "</article>"
+      );
+    }).join("");
+    root.innerHTML =
+      cards +
+      '<div class="card" id="wipe-box">' +
+        '<p class="stack-actions"><button type="button" class="btn btn-ghost" data-history-wipe-ask>Xóa tất cả</button></p>' +
+        '<div id="wipe-confirm" hidden>' +
+          "<p>Xóa hết đơn đã lưu trên máy này? Đơn trên sheet của quán không bị xóa, và không khôi phục được trên trình duyệt này.</p>" +
+          '<p class="stack-actions"><button type="button" class="btn btn-primary" data-history-wipe-yes>Xóa hết</button>' +
+          '<button type="button" class="btn btn-ghost" data-history-wipe-no>Giữ lại</button></p>' +
+        "</div>" +
+      "</div>";
+  }
+
+  function renderHistoryDetail(root, order) {
+    const lead = $("#orders-lead");
+    if (!order) {
+      if (lead) lead.textContent = "Mã này không có trong trình duyệt hiện tại.";
+      root.innerHTML =
+        '<div class="empty"><h2>Không thấy đơn</h2><p>Đơn này chưa được lưu trên máy này.</p>' +
+        '<p class="stack-actions" style="justify-content:center"><a class="btn btn-primary" href="orders.html">Về đơn của tôi</a></p></div>';
+      return;
+    }
+    if (lead) lead.textContent = "Chỉ có trên trình duyệt này. Quán vẫn giữ đơn trên sheet.";
+    const customer = order.customer || {};
+    const phone = prettyPhone(String(customer.phone || "").replace(/\D/g, "")) || customer.phone || "";
+    const lines = (order.lines || []).map(function (line) {
+      return (
+        '<div><span>' + esc(line.quantity) + " × " + esc(line.name) +
+          '<br><small class="muted">' + esc(optionSummary(line)) + "</small></span><strong>" +
+          formatVnd(lineTotal(line)) + "</strong></div>"
+      );
+    }).join("");
+    root.innerHTML =
+      '<p><a href="orders.html">Tất cả đơn</a></p>' +
+      '<article class="ticket">' +
+        '<p class="eyebrow">Đã gửi cho quán</p>' +
+        '<h2 class="order-code">' + esc(order.id) + "</h2>" +
+        '<p class="muted">' + esc(order.placedAt || "") + "</p>" +
+        "<p><strong>" + esc(customer.name || "") + "</strong>" + (phone ? " · " + esc(phone) : "") + "<br>" +
+          esc(FULFILLMENT[order.fulfillment] || order.fulfillment || "") +
+          (order.address ? " · " + esc(order.address) : "") + "<br>" +
+          esc(PAYMENT[order.payment] || order.payment || "") +
+          (order.note ? "<br>Ghi chú: " + esc(order.note) : "") +
+        "</p>" +
+        '<div class="totals">' + lines +
+          "<div><span>Tạm tính</span><strong>" + formatVnd(order.subtotal) + "</strong></div>" +
+          "<div><span>Phí giao hàng</span><strong>" + formatVnd(order.deliveryFee) + "</strong></div>" +
+          '<div class="grand"><span>Tổng</span><strong>' + formatVnd(order.total) + "</strong></div>" +
+        "</div>" +
+        '<p class="stack-actions">' +
+          '<button type="button" class="btn btn-primary" data-history-reorder="' + esc(order.id) + '">Đặt lại</button>' +
+          '<button type="button" class="btn btn-ghost" data-history-delete="' + esc(order.id) + '">Xóa đơn</button>' +
+        "</p>" +
+        '<p class="field-error" data-history-note></p>' +
+      "</article>";
+  }
+
+  function deleteHistory(id) {
+    saveHistory(loadHistory().filter(function (order) { return order.id !== id; }));
+    const params = new URLSearchParams(location.search);
+    if (params.get("id") === id) {
+      location.href = "orders.html";
+      return;
+    }
+    renderHistory();
+  }
+
+  function reorderHistory(id) {
+    const record = loadHistory().find(function (order) { return order.id === id; });
+    if (!record) return;
+    const result = readdOrder(record);
+    const note = document.querySelector("[data-history-note]");
+    if (!result.added) {
+      if (note) note.textContent = "Các món này không còn bán.";
+      return;
+    }
+    const skipped = result.skipped
+      ? " Bỏ qua " + result.skipped + " món không còn bán."
+      : "";
+    setFlash("Đã thêm " + result.added + " món vào giỏ." + skipped);
+    location.href = "cart.html";
   }
 
   function init() {
@@ -821,8 +1127,39 @@
     if (page === "cart") renderCart();
     if (page === "checkout") renderCheckout();
     if (page === "order") renderOrder();
+    if (page === "orders") renderHistory();
 
     document.body.addEventListener("click", function (event) {
+      const wipeAsk = event.target.closest("[data-history-wipe-ask]");
+      if (wipeAsk) {
+        const box = $("#wipe-confirm");
+        if (box) box.hidden = false;
+        wipeAsk.hidden = true;
+        return;
+      }
+      if (event.target.closest("[data-history-wipe-no]")) {
+        const box = $("#wipe-confirm");
+        const ask = document.querySelector("[data-history-wipe-ask]");
+        if (box) box.hidden = true;
+        if (ask) ask.hidden = false;
+        return;
+      }
+      if (event.target.closest("[data-history-wipe-yes]")) {
+        saveHistory([]);
+        renderHistory();
+        return;
+      }
+      const reorder = event.target.closest("[data-history-reorder]");
+      if (reorder) {
+        reorderHistory(reorder.getAttribute("data-history-reorder"));
+        return;
+      }
+      const removeOrder = event.target.closest("[data-history-delete]");
+      if (removeOrder) {
+        event.preventDefault();
+        deleteHistory(removeOrder.getAttribute("data-history-delete"));
+        return;
+      }
       const opener = event.target.closest("[data-open-item]");
       if (opener) {
         event.preventDefault();
