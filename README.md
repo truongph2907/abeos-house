@@ -24,6 +24,7 @@ Mở http://localhost:8765/abeos-house/
 - `checkout.html` — thông tin nhận và thanh toán
 - `order.html` — xác nhận đơn
 - `orders.html` — đơn đã đặt trên máy này (Đơn của tôi)
+- `admin.html` — trang chủ quán. Không có trong menu. Mở http://localhost:8765/abeos-house/admin.html (trên Pages: `/abeos-house/admin.html`)
 
 Khi thêm món, hộp chọn có cỡ S/M/L, đường, đá (với đồ uống), topping, số lượng và ghi chú.
 
@@ -38,7 +39,9 @@ Khi thêm món, hộp chọn có cỡ S/M/L, đường, đá (với đồ uống
 
 Máy chủ lạnh có thể mất vài giây. Trang hiện “Đang tải thực đơn…” và, khi mất mạng, một dòng nhắc thử lại. Lỗi kiểm tra dữ liệu hiện bằng tiếng Việt.
 
-`App.SHOP` trong `js/config.js` chỉ lấp chữ hoặc ảnh mà API để trống. Khóa `logo` đổi huy hiệu **AB**; để trống thì giữ nguyên. Sửa thực đơn và thông tin quán trên backend, không sửa file tĩnh.
+`App.SHOP` trong `js/config.js` chỉ lấp chữ hoặc ảnh mà API để trống. Khóa `logo` đổi huy hiệu **AB**; để trống thì giữ nguyên.
+
+Chủ quán sửa quán, món và đơn trên `admin.html`. Trang công khai không liên kết tới đó. Đăng nhập gọi `POST /api/admin/login`; các lệnh sau gửi `Authorization: Bearer`. Token nằm trong `sessionStorage` và bị xóa khi đăng xuất hoặc hết hạn.
 
 Đơn đã gửi nằm trong `localStorage` khóa `abeos.orders.v1` (Đơn của tôi). Giá trên màn xác nhận là giá máy chủ trả về.
 
