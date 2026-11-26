@@ -682,7 +682,7 @@
         '<p class="stack-actions" style="justify-content:center"><a class="btn btn-primary" href="menu.html">Mở thực đơn</a></p></div>';
       return;
     }
-    if (lead) lead.textContent = cartCount(cart) + " món, lưu trên máy này.";
+    if (lead) lead.textContent = cartCount(cart) + " món.";
     const flash = consumeFlash();
     const lines = cart.map(function (line) {
       return (
@@ -1015,7 +1015,7 @@
     const lead = $("#orders-lead");
     if (lead) {
       lead.textContent = list.length
-        ? "Chỉ lưu trên trình duyệt này. Đổi máy hoặc xóa dữ liệu duyệt web thì không còn."
+        ? "Chỉ lưu trên trình duyệt này."
         : "Chưa có đơn nào trên máy này.";
     }
     if (!list.length) {
