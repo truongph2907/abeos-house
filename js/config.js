@@ -1,13 +1,9 @@
-/* Chỗ duy nhất để nối Google Sheet. Xem docs/SETUP-GOOGLE-SHEET.md.
-   spreadsheetId và scriptUrl đã có. Sheet chưa chia sẻ công khai thì trang dùng thực đơn mẫu trong js/data.js. */
+/* Chỗ duy nhất để nối API. */
 window.App = window.App || {};
 
-App.SHEETS = {
-  spreadsheetId: "1urtnj8cjDDgCLhLk6NMQsMuEAOHyIv85Vcuo-5q3Lb8",
-  scriptUrl: "https://script.google.com/macros/s/AKfycbxL7SeKXn_AjoFtrEFFWEIqS0ShnJKNd_Z06wvCADuUSYJioMY7eJViM-q62jX592fSxg/exec"
-};
+App.API_BASE = "https://abeos-house-192995384109.asia-southeast1.run.app";
 
-/* Bản mẫu khi chưa điền spreadsheetId, hoặc khi không tải được sheet. */
+/* Chữ dự phòng khi API để trống ảnh hoặc khẩu hiệu. Thực đơn và phí giao lấy từ API. */
 App.SHOP = {
   name: "A Béo's House",
   tagline: "Đồ uống và đồ ăn nhà làm, ấm như ghé nhà người quen.",
@@ -25,6 +21,6 @@ App.SHOP = {
     accountName: "A BEO HOUSE",
     branch: "Chi nhánh mẫu",
     placeholder: true,
-    note: "Số tài khoản này chỉ là placeholder. Chủ quán thay số thật ở tab Shop trước khi khách chuyển khoản."
+    note: "Số tài khoản này chỉ là placeholder. Chủ quán thay số thật trước khi khách chuyển khoản."
   }
 };

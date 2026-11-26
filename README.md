@@ -27,15 +27,25 @@ Mở http://localhost:8765/abeos-house/
 
 Khi thêm món, hộp chọn có cỡ S/M/L, đường, đá (với đồ uống), topping, số lượng và ghi chú.
 
-## Sửa quán và thực đơn
+## Quán, thực đơn và đơn hàng
 
-- `js/config.js` — `spreadsheetId` và `scriptUrl` đã điền. `App.SHOP` là bản mẫu khi sheet chưa chia sẻ công khai hoặc tải lỗi. Khóa `logo` trên tab Shop đổi huy hiệu **AB**; để trống thì giữ nguyên.
-- `js/data.js` — 19 món mẫu (12 đồ uống, 7 đồ ăn), dùng khi sheet trống hoặc lỗi.
-- Cách tạo Google Sheet, Apps Script và email báo đơn: [docs/SETUP-GOOGLE-SHEET.md](docs/SETUP-GOOGLE-SHEET.md).
+Địa chỉ API nằm một chỗ: `App.API_BASE` trong `js/config.js`. Trang gọi:
+
+- `GET /api/shop` — tên quán, giờ, phí giao, ảnh, tài khoản
+- `GET /api/products` — món đang bán. Ô `options` vẫn là chữ nhiều dòng (`size: … | …`)
+- `POST /api/orders` — gửi đơn. Máy chủ tính giá và phí giao. Gửi lại cùng mã `AB-XXXX` và cùng số điện thoại không tạo đơn mới
+- `GET /api/orders/{code}?phone=` — đủ chi tiết khi số khớp; không có số thì chỉ trạng thái và tổng tiền
+
+Máy chủ lạnh có thể mất vài giây. Trang hiện “Đang tải thực đơn…” và, khi mất mạng, một dòng nhắc thử lại. Lỗi kiểm tra dữ liệu hiện bằng tiếng Việt.
+
+`App.SHOP` trong `js/config.js` chỉ lấp chữ hoặc ảnh mà API để trống. Khóa `logo` đổi huy hiệu **AB**; để trống thì giữ nguyên. Sửa thực đơn và thông tin quán trên backend, không sửa file tĩnh.
+
+Đơn đã gửi nằm trong `localStorage` khóa `abeos.orders.v1` (Đơn của tôi). Giá trên màn xác nhận là giá máy chủ trả về.
+
+## Giao diện
+
 - `css/styles.css` — màu và kiểu, biến ở `:root`. Giao diện theo quán hẻm: mái hiên vàng đỏ, bảng hiệu, ảnh món thật.
 - `img/` — ảnh món từ Wikimedia Commons (giấy phép tự do). Đường dẫn tương đối `img/….jpg`.
-
-Bấm đặt món sẽ ghi một dòng vào tab Orders (giá tính lại trên script) và gửi email nếu tab Shop có `notify_email`. Sheet chưa chia sẻ công khai thì trang vẫn mở bằng thực đơn mẫu.
 
 ## GitHub Pages
 

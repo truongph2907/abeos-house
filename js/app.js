@@ -414,16 +414,40 @@
     }
   }
 
+  function catalogBlocked() {
+    return window.App && App.catalog && App.catalog.failed;
+  }
+
+  function retryCatalog() {
+    try { sessionStorage.setItem("abeos-house:catalog-force", "1"); } catch (error) { /* bộ nhớ riêng tư */ }
+    location.reload();
+  }
+
   function renderHome() {
     const featured = $("#featured");
     if (!featured) return;
+    if (catalogBlocked()) {
+      featured.innerHTML =
+        '<div class="empty" role="status"><h2>Chưa tải được thực đơn</h2><p>Máy chủ có thể đang khởi động. Đợi vài giây rồi thử lại.</p>' +
+        '<p class="stack-actions" style="justify-content:center"><button type="button" class="btn btn-primary" data-catalog-retry>Thử lại</button></p></div>';
+      return;
+    }
     const items = menu().filter(function (item) { return item.popular; });
-    featured.innerHTML = items.map(cardHtml).join("");
+    featured.innerHTML = items.length
+      ? items.map(cardHtml).join("")
+      : '<div class="empty" role="status"><h2>Chưa có món nổi bật</h2><p>Mở thực đơn để xem món đang bán.</p></div>';
   }
 
   function renderMenu() {
     const root = $("#menu-app");
     if (!root) return;
+    if (catalogBlocked()) {
+      root.innerHTML =
+        '<div class="empty" role="status"><h2>Chưa tải được thực đơn</h2>' +
+        '<p>Máy chủ có thể đang khởi động. Đợi vài giây rồi thử lại.</p>' +
+        '<p class="stack-actions" style="justify-content:center"><button type="button" class="btn btn-primary" data-catalog-retry>Thử lại</button></p></div>';
+      return;
+    }
     const categories = (App.CATEGORIES || []);
     const chips = ['<button type="button" class="chip is-active" data-category="all" aria-pressed="true">Tất cả</button>']
       .concat(categories.map(function (category) {
@@ -801,11 +825,9 @@
     }
     const info = shop();
     const bank = info.bank || {};
-    const scriptReady = window.App && App.SHEETS && String(App.SHEETS.scriptUrl || "").trim();
     root.innerHTML =
       '<form id="checkout-form" class="checkout-layout" novalidate>' +
         "<div>" +
-          (scriptReady ? "" : '<p class="notice">Chưa nối đơn tới Google Sheet. Đặt món sẽ báo lỗi cho đến khi dán link Apps Script trong js/config.js.</p>') +
           '<label class="field">Họ tên<input name="name" autocomplete="name" maxlength="80" required></label>' +
           '<p class="field-error" data-error="name"></p>' +
           '<label class="field">Số điện thoại<input name="phone" inputmode="tel" autocomplete="tel" maxlength="16" required></label>' +
@@ -822,7 +844,7 @@
             '<label class="option-card"><input type="radio" name="payment" value="cash" checked><span>Tiền mặt khi nhận<small>Trả khi lấy món</small></span></label>' +
             '<label class="option-card"><input type="radio" name="payment" value="transfer"><span>Chuyển khoản<small>Hiện số tài khoản mẫu</small></span></label>' +
           "</fieldset>" +
-          '<div id="bank-preview" class="notice" hidden><strong>Tài khoản mẫu</strong><p>' + esc(bank.note || "") + "</p>" +
+          '<div id="bank-preview" class="notice" hidden><strong>' + (bank.placeholder ? "Tài khoản mẫu" : "Chuyển khoản") + '</strong><p>' + esc(bank.note || "") + "</p>" +
             "<p>" + esc(bank.bankName || "") + " · " + esc(bank.accountNumber || "") + " · " + esc(bank.accountName || "") + "</p></div>" +
           '<p class="field-error" data-error="form"></p>' +
           '<button class="btn btn-primary btn-block" type="submit">Đặt món</button>' +
@@ -897,7 +919,7 @@
       lines: cart.map(function (line) {
         return {
           id: line.itemId,
-          size: line.size,
+          size: line.sizeLabel || line.size,
           sugar: line.sugarLabel || "",
           ice: line.iceLabel || "",
           toppings: line.toppingLabels || [],
@@ -919,6 +941,10 @@
     }).catch(function (error) {
       button.disabled = false;
       button.textContent = previousLabel;
+      const fields = (error && error.fields) || {};
+      if (fields.customerName) setFieldError(form, "name", fields.customerName);
+      if (fields.phone) setFieldError(form, "phone", fields.phone);
+      if (fields.address) setFieldError(form, "address", fields.address);
       setFieldError(form, "form", (error && error.message) || "Không gửi được đơn. Giỏ vẫn còn.");
     });
   }
@@ -938,6 +964,113 @@
     window.prompt("Sao chép nội dung này:", text);
   }
 
+  const ORDER_STATUS = {
+    NEW: "Mới",
+    ACCEPTED: "Đã nhận",
+    DONE: "Hoàn tất",
+    CANCELLED: "Đã hủy"
+  };
+
+  function lookupMarkup(code) {
+    return (
+      '<form id="order-lookup" class="card" novalidate>' +
+        "<h2>Tra cứu đơn</h2>" +
+        '<p class="muted">Mã dạng AB-XXXX. Có số điện thoại lúc đặt thì xem được chi tiết. Không nhập số thì chỉ thấy trạng thái và tổng tiền.</p>' +
+        '<label class="field">Mã đơn<input name="code" maxlength="12" autocomplete="off" autocapitalize="characters" value="' + esc(code || "") + '"></label>' +
+        '<p class="field-error" data-error="code"></p>' +
+        '<label class="field">Số điện thoại<input name="phone" inputmode="tel" autocomplete="tel" maxlength="16"></label>' +
+        '<p class="field-error" data-error="phone"></p>' +
+        '<p class="field-error" data-error="form"></p>' +
+        '<button class="btn btn-primary" type="submit">Xem đơn</button>' +
+      "</form>" +
+      '<div id="lookup-result"></div>'
+    );
+  }
+
+  function renderLookupSummary(order) {
+    const slot = $("#lookup-result");
+    if (!slot) return;
+    slot.innerHTML =
+      '<article class="ticket">' +
+        '<p class="eyebrow">Tóm tắt đơn</p>' +
+        '<h2 class="order-code">' + esc(order.id) + "</h2>" +
+        "<p>" + esc(ORDER_STATUS[order.status] || order.status || "Đã ghi nhận") + "</p>" +
+        "<p>" + esc(order.itemCount) + " món · Tổng <strong>" + formatVnd(order.total) + "</strong></p>" +
+        '<p class="muted">Nhập số điện thoại lúc đặt để xem tên, món và địa chỉ.</p>' +
+      "</article>";
+  }
+
+  function storeLookedUpOrder(order) {
+    const orders = loadOrders();
+    orders[order.id] = order;
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
+    try { rememberOrder(order); } catch (error) { /* lịch sử đầy hoặc bị chặn */ }
+    updateBadges();
+  }
+
+  function submitLookup(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const code = form.elements.code.value.trim().toUpperCase();
+    const phoneRaw = form.elements.phone.value.trim();
+    setFieldError(form, "code", "");
+    setFieldError(form, "phone", "");
+    setFieldError(form, "form", "");
+    const result = $("#lookup-result");
+    if (result) result.innerHTML = "";
+    if (!/^AB-[A-Z0-9]{4}$/.test(code)) {
+      setFieldError(form, "code", "Mã đơn phải dạng AB-XXXX.");
+      return;
+    }
+    let phone = "";
+    if (phoneRaw) {
+      phone = normalizePhone(phoneRaw);
+      if (!phone) {
+        setFieldError(form, "phone", "Số điện thoại chưa đúng. Ví dụ 0901234567.");
+        return;
+      }
+    }
+    const button = form.querySelector("[type=submit]");
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    const previous = button.textContent;
+    button.textContent = "Đang tìm đơn…";
+    const finder = window.App && App.lookupOrder
+      ? App.lookupOrder(code, phone)
+      : Promise.reject(new Error("Không tra cứu được đơn."));
+    finder.then(function (order) {
+      button.disabled = false;
+      button.textContent = previous;
+      if (order.summary) {
+        renderLookupSummary(order);
+        return;
+      }
+      storeLookedUpOrder(order);
+      if (document.body.dataset.page === "order") {
+        const url = new URL(location.href);
+        url.searchParams.set("id", order.id);
+        history.replaceState(null, "", url.pathname + url.search);
+        renderOrder();
+        return;
+      }
+      location.href = "orders.html?id=" + encodeURIComponent(order.id);
+    }).catch(function (error) {
+      button.disabled = false;
+      button.textContent = previous;
+      const fields = (error && error.fields) || {};
+      if (fields.code) setFieldError(form, "code", fields.code);
+      if (fields.phone) setFieldError(form, "phone", fields.phone);
+      setFieldError(form, "form", (error && error.message) || "Không tìm được đơn.");
+    });
+  }
+
+  function bindLookup(root) {
+    const form = $("#order-lookup", root);
+    if (!form || form.dataset.bound === "1") return;
+    form.dataset.bound = "1";
+    form.addEventListener("submit", submitLookup);
+  }
+
   function renderOrder() {
     const root = $("#order-app");
     if (!root) return;
@@ -945,8 +1078,9 @@
     const order = loadOrders()[params.get("id") || ""];
     if (!order) {
       root.innerHTML =
-        '<div class="empty"><h2>Không thấy đơn</h2><p>Mã này không có trong trình duyệt hiện tại.</p>' +
-        '<p class="stack-actions" style="justify-content:center"><a class="btn btn-primary" href="menu.html">Về thực đơn</a></p></div>';
+        '<div class="empty"><h2>Không thấy đơn trên máy này</h2><p>Nhập mã và số điện thoại lúc đặt để xem đơn.</p></div>' +
+        lookupMarkup(params.get("id") || "");
+      bindLookup(root);
       return;
     }
     const when = new Date(order.createdAt);
@@ -976,8 +1110,8 @@
         '<h2 class="order-code">' + esc(order.id) + "</h2>" +
         '<p class="muted">' + esc(time) + " · " + esc(shop().name || "") + "</p>" +
         "<p>" + (order.sent
-          ? "Đơn đã gửi cho quán và được ghi vào Google Sheet. Giữ mã này khi nhận món."
-          : "Đưa mã này cho quán khi nhận món. Đơn này chưa được gửi lên Google Sheet.") + "</p>" +
+          ? "Đơn đã gửi cho quán. Giữ mã này khi nhận món."
+          : "Đưa mã này cho quán khi nhận món. Đơn này chưa được gửi tới quán.") + "</p>" +
         "<p><strong>" + esc(order.customer.name) + "</strong> · " + esc(order.customer.phone) + "<br>" +
           esc(FULFILLMENT[order.fulfillment] || order.fulfillment) +
           (order.address ? " · " + esc(order.address) : "") + "<br>" +
@@ -1020,8 +1154,10 @@
     }
     if (!list.length) {
       root.innerHTML =
+        lookupMarkup("") +
         '<div class="empty"><h2>Chưa có đơn</h2><p>Đơn đã gửi thành công sẽ hiện ở đây, mới nhất trước.</p>' +
         '<p class="stack-actions" style="justify-content:center"><a class="btn btn-primary" href="menu.html">Mở thực đơn</a></p></div>';
+      bindLookup(root);
       return;
     }
     const cards = list.map(function (order) {
@@ -1037,15 +1173,17 @@
       );
     }).join("");
     root.innerHTML =
+      lookupMarkup("") +
       cards +
       '<div class="card" id="wipe-box">' +
         '<p class="stack-actions"><button type="button" class="btn btn-ghost" data-history-wipe-ask>Xóa tất cả</button></p>' +
         '<div id="wipe-confirm" hidden>' +
-          "<p>Xóa hết đơn đã lưu trên máy này? Đơn trên sheet của quán không bị xóa, và không khôi phục được trên trình duyệt này.</p>" +
+          "<p>Xóa hết đơn đã lưu trên máy này? Không khôi phục được trên trình duyệt này.</p>" +
           '<p class="stack-actions"><button type="button" class="btn btn-primary" data-history-wipe-yes>Xóa hết</button>' +
           '<button type="button" class="btn btn-ghost" data-history-wipe-no>Giữ lại</button></p>' +
         "</div>" +
       "</div>";
+    bindLookup(root);
   }
 
   function renderHistoryDetail(root, order) {
@@ -1053,11 +1191,13 @@
     if (!order) {
       if (lead) lead.textContent = "Mã này không có trong trình duyệt hiện tại.";
       root.innerHTML =
-        '<div class="empty"><h2>Không thấy đơn</h2><p>Đơn này chưa được lưu trên máy này.</p>' +
-        '<p class="stack-actions" style="justify-content:center"><a class="btn btn-primary" href="orders.html">Về đơn của tôi</a></p></div>';
+        '<div class="empty"><h2>Không thấy đơn</h2><p>Đơn này chưa được lưu trên máy này. Tra cứu bằng số điện thoại lúc đặt.</p></div>' +
+        lookupMarkup(new URLSearchParams(location.search).get("id") || "") +
+        '<p class="stack-actions"><a class="btn btn-ghost" href="orders.html">Về đơn của tôi</a></p>';
+      bindLookup(root);
       return;
     }
-    if (lead) lead.textContent = "Chỉ có trên trình duyệt này. Quán vẫn giữ đơn trên sheet.";
+    if (lead) lead.textContent = "Chỉ có trên trình duyệt này.";
     const customer = order.customer || {};
     const phone = prettyPhone(String(customer.phone || "").replace(/\D/g, "")) || customer.phone || "";
     const lines = (order.lines || []).map(function (line) {
@@ -1130,6 +1270,11 @@
     if (page === "orders") renderHistory();
 
     document.body.addEventListener("click", function (event) {
+      if (event.target.closest("[data-catalog-retry]")) {
+        event.preventDefault();
+        retryCatalog();
+        return;
+      }
       const wipeAsk = event.target.closest("[data-history-wipe-ask]");
       if (wipeAsk) {
         const box = $("#wipe-confirm");
