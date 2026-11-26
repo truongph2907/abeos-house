@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quản trị — A Béo's House</title>
+  <meta name="robots" content="noindex">
+  <meta name="description" content="Trang quản trị của chủ quán A Béo's House.">
+  <meta name="theme-color" content="#146b4a">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Paytone+One&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="admin">
+  <a class="skip" href="#main">Tới nội dung</a>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-mark" aria-hidden="true">AB</span>
+        <span>
+          <strong>A Béo's House</strong>
+          <small>Quản trị quán</small>
+        </span>
+      </a>
+      <button type="button" class="admin-logout" id="admin-logout" hidden>Đăng xuất</button>
+    </div>
+  </header>
+  <main id="main">
+    <div class="wrap">
+      <div id="admin-app">
+        <p class="admin-busy">Đang mở trang quản trị…</p>
+      </div>
+      <noscript><p class="notice">Bật JavaScript để dùng trang quản trị.</p></noscript>
+    </div>
+  </main>
+  <script src="js/config.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
