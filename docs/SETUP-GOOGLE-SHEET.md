@@ -1,5 +1,7 @@
 # Nối A Béo's House với Google Sheet
 
+Trang web không còn đọc Google Sheet hay Apps Script. Quán, thực đơn và đơn hàng đi qua `App.API_BASE` trong `js/config.js`. Phần dưới chỉ mô tả cách sheet cũ được dựng, để tham khảo.
+
 Sheet đã tạo sẵn, đúng 3 tab `Shop`, `Products`, `Orders` và dữ liệu mẫu. Không cần tạo file mới hay import lại CSV.
 
 Mở sheet: https://docs.google.com/spreadsheets/d/1urtnj8cjDDgCLhLk6NMQsMuEAOHyIv85Vcuo-5q3Lb8/edit

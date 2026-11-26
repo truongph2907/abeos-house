@@ -1,4 +1,4 @@
-/* Đọc CSV Google Sheet, link ảnh Drive, và ô "lựa chọn". Dùng chung cho trang và kiểm thử. */
+/* Đọc ô "lựa chọn" (cùng dạng chữ với API), link ảnh, và giá một dòng. */
 (function (root) {
   var App = root.App || (root.App = {});
 
