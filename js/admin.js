@@ -142,6 +142,15 @@
     return String(value || "").split("|").map(function (item) { return item.trim(); }).filter(Boolean);
   }
 
+  function displayImageUrl(value) {
+    var url = String(value || "").trim();
+    if (!url || /^(javascript|data):/i.test(url)) return "";
+    if (window.App && typeof App.driveImageUrl === "function") {
+      url = App.driveImageUrl(url) || url;
+    }
+    return url;
+  }
+
   function safeImage(value) {
     var url = String(value || "").trim();
     if (!url) return "";
@@ -388,10 +397,10 @@
       h("h1", { text: "Quản trị" }),
       h("p", { text: "Sửa thông tin quán, món và đơn hàng." })
     ]}));
-    root.appendChild(h("div", { class: "admin-tabs", role: "tablist", "aria-label": "Mục quản trị", children: [
-      tabButton("shop", "Thông tin quán"),
-      tabButton("products", "Món"),
-      tabButton("orders", "Đơn hàng")
+    root.appendChild(h("nav", { class: "admin-tabs", role: "tablist", "aria-label": "Mục quản trị", children: [
+      tabButton("shop", "Thông tin quán", "Quán", tabIconStore()),
+      tabButton("products", "Món", "Món", tabIconCup()),
+      tabButton("orders", "Đơn hàng", "Đơn hàng", tabIconReceipt())
     ]}));
     root.appendChild(shopPanel());
     root.appendChild(productsPanel());
@@ -405,7 +414,32 @@
     bindPreview($("shop-logo"), $("shop-logo-preview"));
   }
 
-  function tabButton(id, label) {
+  function tabIcon(pathD) {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("class", "admin-tab-icon");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("fill", "currentColor");
+    path.setAttribute("d", pathD);
+    svg.appendChild(path);
+    return svg;
+  }
+
+  function tabIconStore() {
+    return tabIcon("M4 10h16v9H4zm0 0l2-5h12l2 5M3 10h18M9 19v-5h6v5");
+  }
+
+  function tabIconCup() {
+    return tabIcon("M5 3h11v8.5A4.5 4.5 0 0 1 11.5 16H9.5A4.5 4.5 0 0 1 5 11.5V3zm11 3h2.25A2.75 2.75 0 0 1 21 8.75 2.75 2.75 0 0 1 18.25 11.5H16M8 18h8v2H8z");
+  }
+
+  function tabIconReceipt() {
+    return tabIcon("M6 2h12v20l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2-2 1.2V2zm3.5 5h5v1.6h-5V7zm0 3.5h5V12h-5v-1.5zm0 3.5h3.5V14H9.5V13.5z");
+  }
+
+  function tabButton(id, fullLabel, shortLabel, icon) {
     return h("button", {
       type: "button",
       role: "tab",
@@ -413,7 +447,8 @@
       "data-tab": id,
       "aria-controls": "panel-" + id,
       "aria-selected": "false",
-      text: label
+      "aria-label": fullLabel,
+      children: [icon, h("span", { class: "admin-tab-label", text: shortLabel })]
     });
   }
 
@@ -487,18 +522,29 @@
 
   function bindPreview(input, img) {
     if (!input || !img) return;
+    var placeholder = img.nextElementSibling;
+    if (!placeholder || !placeholder.classList.contains("admin-preview-empty")) {
+      placeholder = h("div", { class: "admin-preview admin-preview-empty", hidden: true, text: "Không xem trước được ảnh" });
+      if (img.parentNode) img.parentNode.insertBefore(placeholder, img.nextSibling);
+    }
     function update() {
-      var url = safeImage(input.value);
+      var url = displayImageUrl(input.value);
       if (!url) {
         img.hidden = true;
         img.removeAttribute("src");
+        placeholder.hidden = true;
         return;
       }
+      placeholder.hidden = true;
       img.hidden = false;
       img.src = url;
     }
     input.addEventListener("input", update);
-    img.addEventListener("error", function () { img.hidden = true; });
+    img.addEventListener("error", function () {
+      if (!img.getAttribute("src")) return;
+      img.hidden = true;
+      placeholder.hidden = false;
+    });
     input._preview = update;
   }
 
@@ -709,31 +755,35 @@
 
   function productCard(product) {
     var active = product.active !== false;
-    var thumb = product.imageUrl
-      ? h("img", { class: "admin-thumb", alt: product.name || "Món", src: String(product.imageUrl) })
-      : h("span", { class: "admin-thumb admin-thumb-empty", text: "Món" });
-    if (thumb.tagName === "IMG") thumb.addEventListener("error", function () { thumb.hidden = true; });
+    var imageSrc = displayImageUrl(product.imageUrl);
+    var placeholder = h("span", { class: "admin-thumb admin-thumb-empty", text: "Món" });
+    var thumbChildren = [placeholder];
+    if (imageSrc) {
+      var img = h("img", { class: "admin-thumb", alt: product.name || "Món", src: imageSrc });
+      placeholder.hidden = true;
+      img.addEventListener("error", function () {
+        img.hidden = true;
+        placeholder.hidden = false;
+      });
+      thumbChildren = [placeholder, img];
+    }
+    var thumb = h("div", { class: "admin-thumb-frame", children: thumbChildren });
     return h("article", { class: "card admin-product" + (active ? "" : " is-off"), children: [
       h("div", { class: "admin-product-row", children: [
         thumb,
-        h("div", { children: [
+        h("div", { class: "admin-product-copy", children: [
           h("p", { class: "item-kicker", text: (product.categoryLabel || (product.category === "food" ? "Đồ ăn" : "Đồ uống")) + (product.featured ? " · Nổi bật" : "") }),
           h("h3", { text: product.name || product.code || "Món" }),
-          h("p", { class: "muted", text: product.code || "" }),
+          h("p", { class: "muted admin-product-code", text: product.code || "" }),
           h("p", { class: "price", text: formatVnd(product.price) }),
-          h("p", { class: "muted", text: active ? "Đang bán" : "Ngừng bán" })
+          h("span", { class: "admin-status-pill" + (active ? " is-on" : " is-off"), text: active ? "Đang bán" : "Ngừng bán" })
         ]})
       ]}),
       h("div", { class: "admin-actions", children: [
         h("button", { type: "button", class: "text-btn", "data-edit": product.code || "", text: "Sửa" }),
-        h("button", {
-          type: "button",
-          class: active ? "add-btn" : "text-btn",
-          "data-toggle": product.code || "",
-          "aria-pressed": active ? "true" : "false",
-          text: active ? "Đang bán" : "Bán lại"
-        }),
-        active ? h("button", { type: "button", class: "text-btn", "data-delete": product.code || "", text: "Ngừng bán" }) : null
+        active
+          ? h("button", { type: "button", class: "text-btn", "data-delete": product.code || "", text: "Ngừng bán" })
+          : h("button", { type: "button", class: "text-btn", "data-toggle": product.code || "", "aria-pressed": "false", text: "Mở bán lại" })
       ]})
     ]});
   }
