@@ -1393,7 +1393,12 @@
     ]) });
   }
 
+  function row(label, value) {
+    return h("div", { class: "bank-row", children: [h("span", { text: label }), h("strong", { text: value })] });
+  }
+
   function setOrderFilter(status) {
+
     state.orderFilter = status;
     document.querySelectorAll("[data-filter-status]").forEach(function (button) {
       var on = (button.getAttribute("data-filter-status") || "") === status;
