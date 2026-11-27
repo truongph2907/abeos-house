@@ -1190,3 +1190,128 @@ html:has(body[data-page="admin"]) { scroll-padding-top: 96px; }
 /* Shop form already uses tight .field gaps; keep blocks from stretching. */
 #panel-shop .field,
 #panel-shop .checkline { align-content: start; }
+
+.admin-status-legend {
+  margin: 14px 0 8px;
+  font-weight: 750;
+}
+
+.admin-status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.admin-status-btn {
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 2px solid var(--enamel);
+  background: var(--paper);
+  color: var(--enamel-deep);
+  font-weight: 750;
+}
+
+.admin-status-btn.is-current,
+.admin-status-btn.is-current:disabled {
+  background: var(--awning);
+  border-color: #c99212;
+  color: var(--enamel-deep);
+}
+
+@media (min-width: 560px) {
+  .admin-status-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.admin-options { margin: 0 0 16px; }
+.admin-options-label {
+  display: block;
+  margin: 0 0 8px;
+  font-weight: 750;
+}
+.admin-option-group {
+  margin-bottom: 8px;
+  border: 2px solid var(--enamel);
+  border-radius: 14px;
+  background: white;
+  overflow: hidden;
+}
+.admin-option-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 4px 8px 4px 4px;
+}
+.admin-option-fold {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-weight: 750;
+}
+.admin-option-fold::before {
+  content: "▸ ";
+}
+.admin-option-group.is-open .admin-option-fold::before { content: "▾ "; }
+.admin-option-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px;
+  font-weight: 750;
+  flex: 0 0 auto;
+}
+.admin-option-switch input { width: 22px; height: 22px; accent-color: var(--enamel); }
+.admin-option-body { display: none; padding: 0 8px 10px; }
+.admin-option-group.is-enabled.is-open .admin-option-body { display: block; }
+.admin-option-rows { display: grid; gap: 8px; }
+.admin-option-row {
+  display: grid;
+  grid-template-columns: 1fr 44px 44px 44px;
+  grid-template-areas:
+    "name name name name"
+    "price up down del";
+  gap: 6px;
+  align-items: center;
+}
+.admin-option-name { grid-area: name; min-height: 44px; padding: 8px 10px; }
+.admin-option-price {
+  grid-area: price;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin: 0;
+  font-weight: 650;
+}
+.admin-option-price input { min-height: 44px; width: 100%; padding: 8px 10px; }
+.admin-option-icon {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 12px;
+  border: 2px solid var(--enamel);
+  background: var(--paper);
+  font-weight: 750;
+  line-height: 1;
+}
+.admin-option-del { color: var(--stool); }
+.admin-option-icon[data-opt-up] { grid-area: up; }
+.admin-option-icon[data-opt-down] { grid-area: down; }
+.admin-option-icon[data-opt-del] { grid-area: del; }
+.admin-option-add {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 8px;
+}
+@media (min-width: 560px) {
+  .admin-option-row {
+    grid-template-columns: 1fr 8.5rem 44px 44px 44px;
+    grid-template-areas: "name price up down del";
+  }
+}

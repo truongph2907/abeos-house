@@ -788,6 +788,200 @@
     ]});
   }
 
+
+  var OPTION_GROUPS = [
+    { key: "size", label: "Size", list: "sizes", writeZero: true },
+    { key: "sugar", label: "Đường", list: "sugar", writeZero: false },
+    { key: "ice", label: "Đá", list: "ice", writeZero: false },
+    { key: "topping", label: "Topping", list: "toppings", writeZero: false }
+  ];
+
+  function choiceToOptionItem(choice) {
+    return {
+      name: String((choice && (choice.label || choice.id)) || "").trim(),
+      extra: Number(choice && (choice.extra != null ? choice.extra : choice.price)) || 0
+    };
+  }
+
+  function parseOptionText(text) {
+    var empty = { size: [], sugar: [], ice: [], topping: [] };
+    var parsed;
+    if (window.App && typeof App.parseOptions === "function") {
+      parsed = App.parseOptions(text);
+    } else {
+      return empty;
+    }
+    return {
+      size: (parsed.sizes || []).map(choiceToOptionItem),
+      sugar: (parsed.sugar || []).map(choiceToOptionItem),
+      ice: (parsed.ice || []).map(choiceToOptionItem),
+      topping: (parsed.toppings || []).map(choiceToOptionItem)
+    };
+  }
+
+  function formatOptionChoice(name, extra, writeZero) {
+    var label = String(name || "").trim();
+    if (!label) return "";
+    var amount = Number(extra);
+    if (!Number.isFinite(amount)) amount = 0;
+    amount = Math.round(amount);
+    if (amount > 0) return label + " +" + amount;
+    if (amount < 0) return label + " " + amount;
+    return writeZero ? label + " 0" : label;
+  }
+
+  function serializeOptionsEditor(root) {
+    if (!root) return "";
+    var lines = [];
+    OPTION_GROUPS.forEach(function (group) {
+      var section = root.querySelector('[data-group="' + group.key + '"]');
+      if (!section || section.getAttribute("data-enabled") !== "true") return;
+      var parts = [];
+      Array.prototype.forEach.call(section.querySelectorAll("[data-option-row]"), function (row) {
+        var nameEl = row.querySelector("[data-opt-name]");
+        var extraEl = row.querySelector("[data-opt-extra]");
+        var part = formatOptionChoice(nameEl ? nameEl.value : "", extraEl ? extraEl.value : 0, group.writeZero);
+        if (part) parts.push(part);
+      });
+      if (parts.length) lines.push(group.key + ": " + parts.join(" | "));
+    });
+    return lines.join("\n");
+  }
+
+  function optionRow(item) {
+    item = item || { name: "", extra: 0 };
+    var extraValue = item.extra == null || item.extra === "" ? "" : String(item.extra);
+    return h("div", { class: "admin-option-row", "data-option-row": "true", children: [
+      h("input", { class: "admin-option-name", "data-opt-name": "true", type: "text", value: item.name || "", placeholder: "Tên lựa chọn", "aria-label": "Tên lựa chọn" }),
+      h("label", { class: "admin-option-price", children: [
+        h("input", { "data-opt-extra": "true", type: "number", step: "1000", inputmode: "numeric", value: extraValue, placeholder: "0", "aria-label": "Giá thêm (đồng)" }),
+        h("span", { text: "đ" })
+      ]}),
+      h("button", { type: "button", class: "admin-option-icon", "data-opt-up": "true", "aria-label": "Đưa lên", text: "↑" }),
+      h("button", { type: "button", class: "admin-option-icon", "data-opt-down": "true", "aria-label": "Đưa xuống", text: "↓" }),
+      h("button", { type: "button", class: "admin-option-icon admin-option-del", "data-opt-del": "true", "aria-label": "Xóa lựa chọn", text: "×" })
+    ]});
+  }
+
+  function optionGroupSection(group, items, enabled) {
+    var on = !!enabled;
+    var body = h("div", { class: "admin-option-body", children: [
+      h("div", { class: "admin-option-rows" }),
+      h("button", { type: "button", class: "text-btn admin-option-add", "data-opt-add": "true", text: "+ Thêm lựa chọn" })
+    ]});
+    var rows = body.querySelector(".admin-option-rows");
+    (items || []).forEach(function (item) { rows.appendChild(optionRow(item)); });
+    var toggle = h("input", { type: "checkbox", "data-opt-enabled": "true", checked: on, "aria-label": "Bật nhóm " + group.label });
+    var fold = h("button", { type: "button", class: "admin-option-fold", "data-opt-fold": "true", "aria-expanded": on ? "true" : "false", text: group.label });
+    var section = h("section", {
+      class: "admin-option-group" + (on ? " is-enabled is-open" : ""),
+      "data-group": group.key,
+      "data-enabled": on ? "true" : "false",
+      children: [
+        h("div", { class: "admin-option-head", children: [
+          fold,
+          h("label", { class: "admin-option-switch", children: [toggle, h("span", { text: "Bật" })] })
+        ]}),
+        body
+      ]
+    });
+    return section;
+  }
+
+  function syncOptionsEditor(root) {
+    if (!root) return "";
+    var hidden = root.querySelector('textarea[name="options"]');
+    var value = serializeOptionsEditor(root);
+    if (hidden) hidden.value = value;
+    return value;
+  }
+
+  function buildOptionsEditor(initialText) {
+    var parsed = parseOptionText(initialText);
+    var wrap = h("div", { class: "admin-options", "data-options-editor": "true" });
+    wrap.appendChild(h("span", { class: "admin-options-label", id: "options-label", text: "Lựa chọn" }));
+    wrap.appendChild(h("textarea", { name: "options", hidden: true, value: String(initialText || "") }));
+    OPTION_GROUPS.forEach(function (group) {
+      var items = parsed[group.key] || [];
+      wrap.appendChild(optionGroupSection(group, items, items.length > 0));
+    });
+    wrap.appendChild(h("p", { class: "field-error", "data-error": "options" }));
+    wrap.setAttribute("aria-labelledby", "options-label");
+
+    function rowOf(el) { return el && el.closest("[data-option-row]"); }
+    function rowsHost(el) {
+      var section = el && el.closest("[data-group]");
+      return section ? section.querySelector(".admin-option-rows") : null;
+    }
+
+    wrap.addEventListener("input", function () { syncOptionsEditor(wrap); });
+    wrap.addEventListener("change", function (event) {
+      var enabled = event.target.closest("[data-opt-enabled]");
+      if (enabled) {
+        var section = enabled.closest("[data-group]");
+        var on = !!enabled.checked;
+        section.setAttribute("data-enabled", on ? "true" : "false");
+        section.classList.toggle("is-enabled", on);
+        if (on) {
+          section.classList.add("is-open");
+          var fold = section.querySelector("[data-opt-fold]");
+          if (fold) fold.setAttribute("aria-expanded", "true");
+          var host = section.querySelector(".admin-option-rows");
+          if (host && !host.children.length) host.appendChild(optionRow({ name: "", extra: 0 }));
+        } else {
+          section.classList.remove("is-open");
+          var foldOff = section.querySelector("[data-opt-fold]");
+          if (foldOff) foldOff.setAttribute("aria-expanded", "false");
+        }
+      }
+      syncOptionsEditor(wrap);
+    });
+    wrap.addEventListener("click", function (event) {
+      var fold = event.target.closest("[data-opt-fold]");
+      if (fold) {
+        var section = fold.closest("[data-group]");
+        if (section.getAttribute("data-enabled") !== "true") return;
+        var open = !section.classList.contains("is-open");
+        section.classList.toggle("is-open", open);
+        fold.setAttribute("aria-expanded", open ? "true" : "false");
+        return;
+      }
+      var add = event.target.closest("[data-opt-add]");
+      if (add) {
+        var host = rowsHost(add);
+        if (host) {
+          host.appendChild(optionRow({ name: "", extra: 0 }));
+          var input = host.lastChild.querySelector("[data-opt-name]");
+          if (input) input.focus();
+        }
+        syncOptionsEditor(wrap);
+        return;
+      }
+      var del = event.target.closest("[data-opt-del]");
+      if (del) {
+        var row = rowOf(del);
+        if (row && row.parentNode) row.parentNode.removeChild(row);
+        syncOptionsEditor(wrap);
+        return;
+      }
+      var up = event.target.closest("[data-opt-up]");
+      if (up) {
+        var current = rowOf(up);
+        if (current && current.previousElementSibling) current.parentNode.insertBefore(current, current.previousElementSibling);
+        syncOptionsEditor(wrap);
+        return;
+      }
+      var down = event.target.closest("[data-opt-down]");
+      if (down) {
+        var currentDown = rowOf(down);
+        if (currentDown && currentDown.nextElementSibling) currentDown.parentNode.insertBefore(currentDown.nextElementSibling, currentDown);
+        syncOptionsEditor(wrap);
+      }
+    });
+    syncOptionsEditor(wrap);
+    return wrap;
+  }
+
   function findProduct(code) {
     return state.products.filter(function (product) { return product && product.code === code; })[0] || null;
   }
@@ -810,7 +1004,7 @@
     var description = h("textarea", { name: "description", rows: "3", value: creating ? "" : (product.description || "") });
     var imageUrl = h("input", { name: "imageUrl", inputmode: "url", value: creating ? "" : (product.imageUrl || "") });
     var preview = h("img", { class: "admin-preview", alt: "Xem trước ảnh món", hidden: true });
-    var options = h("textarea", { name: "options", rows: "6", spellcheck: "false", value: creating ? "" : (typeof product.options === "string" ? product.options : "") });
+    var optionsEditor = buildOptionsEditor(creating ? "" : (typeof product.options === "string" ? product.options : ""));
     var sortOrder = h("input", { name: "sortOrder", type: "number", step: "1", inputmode: "numeric", value: creating ? "0" : String(product.sortOrder == null ? 0 : product.sortOrder) });
     var featured = h("input", { name: "featured", type: "checkbox", checked: !creating && product.featured === true });
     var active = h("input", { name: "active", type: "checkbox", checked: creating || product.active !== false });
@@ -825,8 +1019,7 @@
       field("Mô tả", description, "description"),
       field("Ảnh (URL)", imageUrl, "imageUrl"),
       preview,
-      field("Lựa chọn", options, "options"),
-      h("p", { class: "muted admin-help", text: "Mỗi dòng một nhóm: size, sugar, ice hoặc topping. Các lựa chọn cách nhau bởi dấu |. Giá thêm ghi sau tên. Ví dụ: size: Ly nhỏ -5000 | Ly vừa 0" }),
+      optionsEditor,
       field("Thứ tự", sortOrder, "sortOrder"),
       field("Gợi ý ghi chú", noteHint, "noteHint"),
       h("label", { class: "checkline", children: [featured, "Nổi bật trên trang chủ"] }),
@@ -866,7 +1059,7 @@
       category: String(form.elements.category.value || ""),
       description: String(form.elements.description.value || "").trim(),
       imageUrl: String(form.elements.imageUrl.value || "").trim(),
-      options: String(form.elements.options.value || "").replace(/^\s+|\s+$/g, ""),
+      options: (function () { var editor = form.querySelector("[data-options-editor]"); return editor ? serializeOptionsEditor(editor) : String((form.elements.options && form.elements.options.value) || "").trim(); })(),
       sortOrder: sortRaw === "" ? 0 : Number(sortRaw),
       noteHint: String(form.elements.noteHint.value || "").trim(),
       featured: !!form.elements.featured.checked,
@@ -1105,10 +1298,6 @@
   function renderOrderList() {
     var host = $("order-list");
     if (!host) return;
-    var drafts = {};
-    host.querySelectorAll("select[data-order-status]").forEach(function (select) {
-      drafts[select.getAttribute("data-order-status")] = select.value;
-    });
     clear(host);
     var orders = orderedOrders().map(viewOrder);
     if (!orders.length) {
@@ -1118,7 +1307,7 @@
       ]}));
       return;
     }
-    orders.forEach(function (order) { host.appendChild(orderCard(order, drafts[order.code])); });
+    orders.forEach(function (order) { host.appendChild(orderCard(order)); });
   }
 
   function itemBits(item) {
@@ -1135,7 +1324,7 @@
     return (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0);
   }
 
-  function orderCard(order, draftStatus) {
+  function orderCard(order) {
     var open = state.expandedOrder === order.code;
     var summary = h("button", {
       type: "button",
@@ -1152,18 +1341,10 @@
         h("span", { class: "pill admin-status", text: statusLabel(order.status) })
       ]
     });
-    return h("article", { class: "card admin-order", children: [summary, open ? orderDetail(order, draftStatus) : null] });
+    return h("article", { class: "card admin-order", children: [summary, open ? orderDetail(order) : null] });
   }
 
-  function orderDetail(order, draftStatus) {
-    var current = draftStatus || order.status;
-    var select = h("select", { "data-order-status": order.code, "aria-label": "Trạng thái đơn " + order.code });
-    var known = false;
-    ORDER_STATUS.forEach(function (item) {
-      if (item.id === current) known = true;
-      select.appendChild(h("option", { value: item.id, text: item.label, selected: item.id === current }));
-    });
-    if (current && !known) select.appendChild(h("option", { value: current, text: current, selected: true }));
+  function orderDetail(order) {
     var phone = String(order.phone || "").replace(/[^\d+]/g, "");
     var rows = [
       row("Khách", order.customerName || "—"),
@@ -1187,6 +1368,18 @@
         ]});
       }) })
       : h("p", { class: "muted", text: "Không có dòng món." });
+    var statusButtons = ORDER_STATUS.map(function (item) {
+      var current = item.id === order.status;
+      return h("button", {
+        type: "button",
+        class: "admin-status-btn" + (current ? " is-current" : ""),
+        "data-set-status": item.id,
+        "data-order-code": order.code,
+        disabled: current,
+        "aria-pressed": current ? "true" : "false",
+        text: item.label
+      });
+    });
     return h("div", { class: "admin-detail", children: rows.concat([
       h("h3", { text: "Món" }),
       lines,
@@ -1195,13 +1388,9 @@
         h("div", { children: [h("span", { text: "Phí giao hàng" }), h("strong", { text: formatVnd(order.deliveryFee) })] }),
         h("div", { class: "grand", children: [h("span", { text: "Tổng" }), h("strong", { text: formatVnd(order.total) })] })
       ]}),
-      h("label", { class: "field", children: [h("span", { text: "Trạng thái" }), select] }),
-      h("button", { type: "button", class: "btn btn-primary", "data-save-status": order.code, text: "Cập nhật trạng thái" })
+      h("p", { class: "admin-status-legend", text: "Trạng thái" }),
+      h("div", { class: "admin-status-grid", role: "group", "aria-label": "Trạng thái đơn " + (order.code || ""), children: statusButtons })
     ]) });
-  }
-
-  function row(label, value) {
-    return h("div", { class: "bank-row", children: [h("span", { text: label }), h("strong", { text: value })] });
   }
 
   function setOrderFilter(status) {
@@ -1214,25 +1403,17 @@
     loadOrders({ silent: false });
   }
 
-  function saveOrderStatus(code, button) {
-    var select = null;
-    document.querySelectorAll("select[data-order-status]").forEach(function (item) {
-      if (item.getAttribute("data-order-status") === code) select = item;
-    });
-    if (!select) return;
-    var status = select.value;
+  function saveOrderStatus(code, status, button) {
     var order = state.orders.map(viewOrder).filter(function (item) { return item.code === code; })[0];
-    if (order && order.status === status) {
-      showStatus($("order-status"), "Trạng thái không đổi.", "muted");
-      return;
-    }
+    if (order && order.status === status) return;
     if (ORDER_STATUS.every(function (item) { return item.id !== status; })) {
       showStatus($("order-status"), "Chọn trạng thái hợp lệ.", "error");
       return;
     }
-    button.disabled = true;
-    var previous = button.textContent;
-    button.textContent = "Đang cập nhật…";
+    if (status === "CANCELLED" && !window.confirm("Hủy đơn " + code + "? Đơn sẽ chuyển sang Đã hủy.")) return;
+    var group = button && button.closest(".admin-status-grid");
+    var buttons = group ? group.querySelectorAll("button") : (button ? [button] : []);
+    Array.prototype.forEach.call(buttons, function (item) { item.disabled = true; });
     request("PATCH", "/api/admin/orders/" + encodeURIComponent(code), { status: status }).then(function (data) {
       state.orders = state.orders.map(function (item) {
         var id = item && (item.code || item.id);
@@ -1242,10 +1423,12 @@
         return next;
       });
       renderOrderList();
-      showStatus($("order-status"), "Đã cập nhật trạng thái " + code + ".", "ok");
+      showStatus($("order-status"), "Đã cập nhật trạng thái " + code + " thành " + statusLabel(status) + ".", "ok");
     }).catch(function (error) {
-      button.disabled = false;
-      button.textContent = previous;
+      var current = order ? order.status : "";
+      Array.prototype.forEach.call(buttons, function (item) {
+        item.disabled = item.getAttribute("data-set-status") === current;
+      });
       if (error && error.auth) return;
       showStatus($("order-status"), (error && error.message) || "Không cập nhật được trạng thái.", "error");
     });
@@ -1290,8 +1473,11 @@
       renderOrderList();
       return;
     }
-    var saveStatus = event.target.closest("[data-save-status]");
-    if (saveStatus) saveOrderStatus(saveStatus.getAttribute("data-save-status"), saveStatus);
+    var setStatus = event.target.closest("[data-set-status]");
+    if (setStatus) {
+      saveOrderStatus(setStatus.getAttribute("data-order-code"), setStatus.getAttribute("data-set-status"), setStatus);
+      return;
+    }
   }
 
   function boot() {
