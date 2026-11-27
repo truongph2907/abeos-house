@@ -428,6 +428,15 @@
     };
   }
 
+  App.lookupOrdersByPhone = function (phone) {
+    var path = "/api/orders/lookup?phone=" + encodeURIComponent(phone || "");
+    return request(path, { timeout: ORDER_TIMEOUT, networkMessage: LOOKUP_NETWORK }).then(function (res) {
+      if (!res.ok) rejectProblem(res);
+      var list = Array.isArray(res.data) ? res.data : [];
+      return list.map(normalizeOrder).filter(Boolean);
+    });
+  };
+
   App.lookupOrder = function (code, phone) {
     var path = "/api/orders/" + encodeURIComponent(code);
     if (phone) path += "?phone=" + encodeURIComponent(phone);

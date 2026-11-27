@@ -394,6 +394,50 @@ h1, .page-intro h1, .section-head h2, .summary h2, .order-code {
 
 .page-intro h1 { margin-bottom: 8px; }
 
+#orders-app {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#lookup-result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#lookup-result:empty { display: none; }
+
+#orders-app .history-card { margin-bottom: 0; }
+
+.history-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 750;
+  color: var(--enamel-deep);
+}
+
+.history-wipe {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 750;
+  color: var(--stool);
+  cursor: pointer;
+}
+
+#wipe-confirm p { margin: 0 0 8px; }
+
 .section-head a {
   color: var(--stool);
   font-weight: 750;

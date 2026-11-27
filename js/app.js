@@ -1032,6 +1032,29 @@
     );
   }
 
+  function renderLookupList(orders) {
+    const slot = $("#lookup-result");
+    if (!slot) return;
+    if (!orders || !orders.length) {
+      slot.innerHTML = '<div class="empty"><h2>Không thấy đơn</h2><p>Không thấy đơn nào với số này trong 30 ngày gần đây.</p></div>';
+      return;
+    }
+    slot.innerHTML = orders.map(function (order) {
+      const time = displayTime(order) || vietnamClock(order.createdAt) || "";
+      const status = ORDER_STATUS[order.status] || order.status || "";
+      const items = historySummary(order);
+      return (
+        '<article class="history-card">' +
+          '<a class="history-open" href="orders.html?id=' + encodeURIComponent(order.id) + '">' +
+            '<div class="history-meta"><strong>' + esc(order.id) + '</strong><span class="price">' + formatVnd(order.total) + "</span></div>" +
+            '<p class="muted">' + esc(time + (status ? " · " + status : "")) + "</p>" +
+            "<p>" + esc(items) + "</p>" +
+          "</a>" +
+        "</article>"
+      );
+    }).join("");
+  }
+
   function renderLookupSummary(order) {
     const slot = $("#lookup-result");
     if (!slot) return;
@@ -1063,7 +1086,11 @@
     setFieldError(form, "form", "");
     const result = $("#lookup-result");
     if (result) result.innerHTML = "";
-    if (!/^AB-[A-Z0-9]{4}$/.test(code)) {
+    if (!code && !phoneRaw) {
+      setFieldError(form, "form", "Nhập mã đơn hoặc số điện thoại.");
+      return;
+    }
+    if (code && !/^AB-[A-Z0-9]{4}$/.test(code)) {
       setFieldError(form, "code", "Mã đơn phải dạng AB-XXXX.");
       return;
     }
@@ -1080,12 +1107,26 @@
     button.disabled = true;
     const previous = button.textContent;
     button.textContent = "Đang tìm đơn…";
-    const finder = window.App && App.lookupOrder
-      ? App.lookupOrder(code, phone)
-      : Promise.reject(new Error("Không tra cứu được đơn."));
-    finder.then(function (order) {
+    const finder = !window.App
+      ? Promise.reject(new Error("Không tra cứu được đơn."))
+      : !code
+        ? (App.lookupOrdersByPhone
+          ? App.lookupOrdersByPhone(phone)
+          : Promise.reject(new Error("Không tra cứu được đơn.")))
+        : (App.lookupOrder
+          ? App.lookupOrder(code, phone)
+          : Promise.reject(new Error("Không tra cứu được đơn.")));
+    finder.then(function (found) {
       button.disabled = false;
       button.textContent = previous;
+      if (Array.isArray(found)) {
+        found.forEach(function (order) {
+          if (order && !order.summary) storeLookedUpOrder(order);
+        });
+        renderLookupList(found);
+        return;
+      }
+      const order = found;
       if (order.summary) {
         renderLookupSummary(order);
         return;
@@ -1123,7 +1164,7 @@
     const order = loadOrders()[params.get("id") || ""];
     if (!order) {
       root.innerHTML =
-        '<div class="empty"><h2>Không thấy đơn</h2><p>Nhập mã và số điện thoại lúc đặt để xem đơn.</p></div>' +
+        '<div class="empty"><h2>Không thấy đơn</h2><p>Nhập mã đơn hoặc số điện thoại lúc đặt để xem đơn.</p></div>' +
         lookupMarkup(params.get("id") || "");
       bindLookup(root);
       return;
@@ -1219,15 +1260,16 @@
     }).join("");
     root.innerHTML =
       lookupMarkup("") +
-      cards +
-      '<div class="card" id="wipe-box">' +
-        '<p class="stack-actions"><button type="button" class="btn btn-ghost" data-history-wipe-ask>Xóa tất cả</button></p>' +
-        '<div id="wipe-confirm" hidden>' +
-          "<p>Xóa hết các đơn trên trang này? Không lấy lại được.</p>" +
-          '<p class="stack-actions"><button type="button" class="btn btn-primary" data-history-wipe-yes>Xóa hết</button>' +
-          '<button type="button" class="btn btn-ghost" data-history-wipe-no>Giữ lại</button></p>' +
-        "</div>" +
-      "</div>";
+      '<div class="history-head">' +
+        "<h2>Đơn đã đặt</h2>" +
+        '<button type="button" class="history-wipe" data-history-wipe-ask>Xóa tất cả</button>' +
+      "</div>" +
+      '<div id="wipe-confirm" hidden>' +
+        "<p>Xóa hết các đơn trên trang này? Không lấy lại được.</p>" +
+        '<p class="stack-actions"><button type="button" class="btn btn-primary" data-history-wipe-yes>Xóa hết</button>' +
+        '<button type="button" class="btn btn-ghost" data-history-wipe-no>Giữ lại</button></p>' +
+      "</div>" +
+      cards;
     bindLookup(root);
   }
 
