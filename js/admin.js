@@ -421,10 +421,6 @@
   function renderShell() {
     var root = $("admin-app");
     clear(root);
-    root.appendChild(h("header", { class: "page-intro", children: [
-      h("h1", { text: "Quản trị" }),
-      h("p", { text: "Sửa thông tin quán, món và đơn hàng." })
-    ]}));
     root.appendChild(h("nav", { class: "admin-tabs", role: "tablist", "aria-label": "Mục quản trị", children: [
       tabButton("shop", "Thông tin quán", "Quán", tabIconStore()),
       tabButton("products", "Món", "Món", tabIconCup()),
@@ -1453,10 +1449,20 @@
 
   function orderCard(order) {
     var open = state.expandedOrder === order.code;
-    var summary = h("button", {
-      type: "button",
+    var phoneDigits = String(order.phone || "").replace(/[^\d+]/g, "");
+    var who = [];
+    if (order.customerName) who.push(document.createTextNode(order.customerName));
+    if (order.customerName && order.phone) who.push(document.createTextNode(" · "));
+    if (order.phone) {
+      who.push(phoneDigits
+        ? h("a", { href: "tel:" + phoneDigits, class: "admin-order-phone", text: order.phone })
+        : document.createTextNode(order.phone));
+    }
+    var summary = h("div", {
       class: "admin-order-open",
       "data-expand": order.code,
+      role: "button",
+      tabindex: "0",
       "aria-expanded": open ? "true" : "false",
       children: [
         h("span", { class: "history-meta", children: [
@@ -1464,7 +1470,7 @@
           h("span", { class: "price", text: formatVnd(order.total) })
         ]}),
         h("span", { class: "muted", text: formatWhen(order.createdAt) }),
-        h("span", { text: [order.customerName, order.phone].filter(Boolean).join(" · ") }),
+        who.length ? h("span", { children: who }) : null,
         h("span", { class: "pill admin-status", text: statusLabel(order.status) })
       ]
     });
@@ -1472,13 +1478,7 @@
   }
 
   function orderDetail(order) {
-    var phone = String(order.phone || "").replace(/[^\d+]/g, "");
     var rows = [
-      row("Khách", order.customerName || "—"),
-      phone ? h("div", { class: "bank-row", children: [
-        h("span", { text: "Điện thoại" }),
-        h("a", { href: "tel:" + phone, text: order.phone })
-      ]}) : row("Điện thoại", "—"),
       row("Nhận món", DELIVERY[order.deliveryType] || order.deliveryType || "—"),
       order.address ? row("Địa chỉ", order.address) : null,
       row("Thanh toán", PAYMENT[order.paymentMethod] || order.paymentMethod || "—"),
@@ -1600,6 +1600,7 @@
     if (filter) { setOrderFilter(filter.getAttribute("data-filter-status") || ""); return; }
     var expand = event.target.closest("[data-expand]");
     if (expand) {
+      if (event.target.closest("a")) return;
       var code = expand.getAttribute("data-expand");
       state.expandedOrder = state.expandedOrder === code ? "" : code;
       renderOrderList();

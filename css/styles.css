@@ -1041,6 +1041,14 @@ html:has(body[data-page="admin"]) { scroll-padding-top: 96px; }
 
 .admin-actions, .admin-filters { display: flex; flex-wrap: wrap; gap: 8px; }
 
+#panel-orders .admin-filters { margin-bottom: 12px; }
+
+.admin-order-open .admin-order-phone {
+  color: var(--stool);
+  font-weight: 750;
+  text-decoration: none;
+}
+
 .admin-actions .btn, .admin-actions .text-btn, .admin-actions .add-btn { flex: 1 1 8rem; }
 
 .admin-product {
