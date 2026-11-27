@@ -5,10 +5,13 @@
   var TOKEN_KEY = "abeos-house:admin-token";
   var EXP_KEY = "abeos-house:admin-expires";
   var REQUEST_MS = 30000;
+  var REQUEST_RETRY_MS = 60000;
+  var REQUEST_RETRIES = 2;
   var ORDER_REFRESH_MS = 60000;
-  var COLD = "Máy chủ có thể đang khởi động. Đợi vài giây rồi thử lại.";
-  var NETWORK = "Không kết nối được máy chủ. " + COLD;
-  var SLOW = "Máy chủ phản hồi quá chậm. " + COLD;
+  var NETWORK = "Không kết nối được, anh/chị thử lại nhé.";
+  var SLOW = "Chưa vào được, anh/chị thử lại nhé.";
+  var SESSION_EXPIRED = "Hết giờ đăng nhập. Nhập mật khẩu lại.";
+  var LOGIN_FAILED = "Không đăng nhập được, anh/chị thử lại nhé.";
 
   var ORDER_STATUS = [
     { id: "NEW", label: "Mới" },
@@ -251,13 +254,13 @@
     if (data && data.detail) return String(data.detail);
     if (data && typeof data.error === "string") return data.error;
     if (data && typeof data.message === "string") return data.message;
-    if (status === 401) return "Phiên đăng nhập đã hết. Nhập mật khẩu lại.";
+    if (status === 401) return SESSION_EXPIRED;
     if (status === 403) return "Không có quyền thực hiện.";
     if (status === 404) return "Không tìm thấy.";
     if (status === 409) return "Mục này đã có.";
     if (status === 413) return "Nội dung quá lớn.";
     if (status === 429) return "Thao tác quá nhanh. Đợi một lát rồi thử lại.";
-    if (status >= 500) return "Máy chủ gặp lỗi. Thử lại sau.";
+    if (status >= 500) return "Không thực hiện được, anh/chị thử lại nhé.";
     return "Không thực hiện được. Thử lại.";
   }
 
@@ -268,55 +271,80 @@
   function endSession(message) {
     clearSession();
     stopOrderRefresh();
-    showLogin(message || "Phiên đăng nhập đã hết. Nhập mật khẩu lại.");
+    showLogin(message || SESSION_EXPIRED);
+  }
+
+  function wait(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  function shouldRetry(error, tryIndex) {
+    if (tryIndex >= REQUEST_RETRIES) return false;
+    if (!error) return false;
+    if (error.network) return true;
+    if (error.status >= 500) return true;
+    return false;
   }
 
   function request(method, path, body, opts) {
     opts = opts || {};
     var base = apiBase();
-    if (!base) return Promise.reject(fail("Chưa cấu hình địa chỉ máy chủ."));
+    if (!base) return Promise.reject(fail("Chưa kết nối được quán."));
     if (!opts.anonymous && !sessionValid()) {
-      endSession("Phiên đăng nhập đã hết. Nhập mật khẩu lại.");
-      return Promise.reject(fail("Phiên đăng nhập đã hết. Nhập mật khẩu lại.", { auth: true, status: 401 }));
+      endSession(SESSION_EXPIRED);
+      return Promise.reject(fail(SESSION_EXPIRED, { auth: true, status: 401 }));
     }
-    var headers = { Accept: "application/json" };
-    if (!opts.anonymous) headers.Authorization = "Bearer " + readRawSession().token;
-    var init = { method: method, headers: headers, cache: "no-store" };
-    if (body != null) {
-      headers["Content-Type"] = "application/json";
-      init.body = JSON.stringify(body);
-    }
-    var controller = typeof AbortController === "function" ? new AbortController() : null;
-    var timer = controller ? setTimeout(function () { controller.abort(); }, REQUEST_MS) : 0;
-    if (controller) init.signal = controller.signal;
-    return fetch(base + path, init).then(function (res) {
-      return res.text().then(function (text) { return { res: res, text: text }; });
-    }).then(function (packet) {
-      var data = null;
-      if (packet.text) {
-        try { data = JSON.parse(packet.text); }
-        catch (error) {
-          throw fail(packet.res.ok ? "Máy chủ trả về dữ liệu không đọc được." : problemMessage(null, packet.res.status), { status: packet.res.status });
+
+    function once(timeout) {
+      var headers = { Accept: "application/json" };
+      if (!opts.anonymous) headers.Authorization = "Bearer " + readRawSession().token;
+      var init = { method: method, headers: headers, cache: "no-store" };
+      if (body != null) {
+        headers["Content-Type"] = "application/json";
+        init.body = JSON.stringify(body);
+      }
+      var controller = typeof AbortController === "function" ? new AbortController() : null;
+      var timer = controller ? setTimeout(function () { controller.abort(); }, timeout) : 0;
+      if (controller) init.signal = controller.signal;
+      return fetch(base + path, init).then(function (res) {
+        return res.text().then(function (text) { return { res: res, text: text }; });
+      }).then(function (packet) {
+        var data = null;
+        if (packet.text) {
+          try { data = JSON.parse(packet.text); }
+          catch (parseError) {
+            throw fail(packet.res.ok ? "Không đọc được dữ liệu." : problemMessage(null, packet.res.status), { status: packet.res.status });
+          }
         }
-      }
-      if (packet.res.status === 401 && !opts.anonymous) {
-        endSession("Phiên đăng nhập đã hết hoặc không còn hợp lệ. Nhập mật khẩu lại.");
-        throw fail("Phiên đăng nhập đã hết hoặc không còn hợp lệ. Nhập mật khẩu lại.", { auth: true, status: 401 });
-      }
-      if (!packet.res.ok) {
-        throw fail(opts.anonymous && packet.res.status === 401 ? "Mật khẩu không đúng." : problemMessage(data, packet.res.status), {
-          status: packet.res.status,
-          fields: data && data.fields
-        });
-      }
-      return data;
-    }).catch(function (error) {
-      if (error && error.app) throw error;
-      var aborted = error && error.name === "AbortError";
-      throw fail(aborted ? SLOW : NETWORK, { network: true });
-    }).finally(function () {
-      if (timer) clearTimeout(timer);
-    });
+        if (packet.res.status === 401 && !opts.anonymous) {
+          endSession(SESSION_EXPIRED);
+          throw fail(SESSION_EXPIRED, { auth: true, status: 401 });
+        }
+        if (!packet.res.ok) {
+          throw fail(opts.anonymous && packet.res.status === 401 ? "Sai mật khẩu." : problemMessage(data, packet.res.status), {
+            status: packet.res.status,
+            fields: data && data.fields
+          });
+        }
+        return data;
+      }).catch(function (error) {
+        if (error && error.app) throw error;
+        var aborted = error && error.name === "AbortError";
+        throw fail(aborted ? SLOW : NETWORK, { network: true });
+      }).finally(function () {
+        if (timer) clearTimeout(timer);
+      });
+    }
+
+    function attempt(tryIndex) {
+      var timeout = tryIndex === 0 ? (opts.timeout || REQUEST_MS) : (opts.retryTimeout || REQUEST_RETRY_MS);
+      return once(timeout).catch(function (error) {
+        if (!shouldRetry(error, tryIndex)) throw error;
+        return wait(800 * (tryIndex + 1)).then(function () { return attempt(tryIndex + 1); });
+      });
+    }
+
+    return attempt(0);
   }
 
   function showLogin(message) {
@@ -356,15 +384,15 @@
         return;
       }
       button.disabled = true;
-      button.textContent = "Đang đăng nhập… " + COLD;
+      button.textContent = "Đang đăng nhập…";
       request("POST", "/api/admin/login", { password: value }, { anonymous: true }).then(function (data) {
         var token = data && data.token ? String(data.token) : "";
-        if (!token) throw fail("Máy chủ không trả token đăng nhập.");
+        if (!token) throw fail(LOGIN_FAILED);
         var expiresAt = data.expiresAt == null ? "" : data.expiresAt;
         var ms = expiryMs(expiresAt);
-        if (ms && Date.now() >= ms) throw fail("Phiên đăng nhập không còn hiệu lực.");
+        if (ms && Date.now() >= ms) throw fail(LOGIN_FAILED);
         try { saveSession(token, expiresAt); }
-        catch (storageError) { throw fail("Trình duyệt không lưu được phiên. Kiểm tra chế độ riêng tư."); }
+        catch (storageError) { throw fail(LOGIN_FAILED); }
         state.sawSession = true;
         password.value = "";
         showApp();
@@ -373,7 +401,7 @@
         button.textContent = "Đăng nhập";
         if (failure && failure.fields) applyFieldErrors(form, failure.fields);
         banner.hidden = false;
-        banner.textContent = (failure && failure.message) || "Không đăng nhập được.";
+        banner.textContent = (failure && failure.status === 401) ? "Sai mật khẩu." : LOGIN_FAILED;
       });
     });
     password.focus();
@@ -553,10 +581,10 @@
     state.shopLoading = true;
     var form = $("shop-form");
     if (form) form.hidden = true;
-    showStatus($("shop-status"), "Đang tải thông tin quán… " + COLD, "busy");
+    showStatus($("shop-status"), "Đang tải thông tin quán…", "busy");
     request("GET", "/api/admin/shop").then(function (data) {
       if (state.view !== "app") return;
-      if (!data || typeof data !== "object" || Array.isArray(data)) throw fail("Máy chủ trả về thông tin quán không đọc được.");
+      if (!data || typeof data !== "object" || Array.isArray(data)) throw fail("Không đọc được thông tin quán.");
       state.shop = data;
       state.shopLoaded = true;
       fillShop(data);
@@ -702,10 +730,10 @@
     if (state.productsLoaded || state.productsLoading) return;
     state.productsLoading = true;
     var first = !state.products.length;
-    if (first) showStatus($("product-status"), "Đang tải món… " + COLD, "busy");
+    if (first) showStatus($("product-status"), "Đang tải món…", "busy");
     request("GET", "/api/admin/products").then(function (data) {
       if (state.view !== "app") return;
-      if (!Array.isArray(data)) throw fail("Máy chủ trả về danh sách món không đọc được.");
+      if (!Array.isArray(data)) throw fail("Không đọc được danh sách món.");
       state.products = data;
       state.productsLoaded = true;
       showStatus($("product-status"), "", "busy");
@@ -1224,10 +1252,10 @@
     var seq = ++orderSeq;
     var status = state.orderFilter || "";
     state.ordersLoading = true;
-    if (!silent) showStatus($("order-status"), "Đang tải đơn hàng… " + COLD, "busy");
+    if (!silent) showStatus($("order-status"), "Đang tải đơn hàng…", "busy");
     return request("GET", ordersPath(status)).then(function (data) {
       if (seq !== orderSeq || state.view !== "app") return;
-      if (!Array.isArray(data)) throw fail("Máy chủ trả về danh sách đơn không đọc được.");
+      if (!Array.isArray(data)) throw fail("Không đọc được danh sách đơn.");
       state.orders = data;
       if (!silent) showStatus($("order-status"), "", "busy");
       showStatus($("order-refresh"), "Cập nhật lúc " + formatWhen(new Date()) + ".", "muted");
@@ -1514,11 +1542,11 @@
       if (!document.hidden && state.view === "app" && state.tab === "orders") loadOrders({ silent: true });
     });
     setInterval(function () {
-      if (state.view === "app" && !sessionValid()) endSession("Phiên đăng nhập đã hết. Nhập mật khẩu lại.");
+      if (state.view === "app" && !sessionValid()) endSession(SESSION_EXPIRED);
     }, 15000);
     var raw = readRawSession();
     if (raw.blocked) {
-      showLogin("Trình duyệt không lưu được phiên. Kiểm tra chế độ riêng tư.");
+      showLogin(LOGIN_FAILED);
       return;
     }
     if (sessionValid()) {
@@ -1528,7 +1556,7 @@
     }
     if (raw.token) {
       clearSession();
-      showLogin("Phiên đăng nhập đã hết. Nhập mật khẩu lại.");
+      showLogin(SESSION_EXPIRED);
       return;
     }
     showLogin("");

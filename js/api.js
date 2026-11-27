@@ -5,9 +5,9 @@
   var CACHE_MS = 10 * 60 * 1000;
   var CATALOG_TIMEOUT = 25000;
   var ORDER_TIMEOUT = 30000;
-  var CATALOG_NETWORK = "Không tải được thực đơn. Máy chủ có thể đang khởi động. Đợi vài giây rồi thử lại.";
-  var ORDER_NETWORK = "Không kết nối được quán. Máy chủ có thể đang khởi động. Giỏ vẫn còn. Đợi vài giây rồi bấm đặt món lần nữa.";
-  var LOOKUP_NETWORK = "Không kết nối được quán. Máy chủ có thể đang khởi động. Đợi vài giây rồi thử lại.";
+  var CATALOG_NETWORK = "Chưa tải được thực đơn. Anh/chị thử lại nhé.";
+  var ORDER_NETWORK = "Chưa gửi được đơn. Giỏ vẫn còn, anh/chị thử lại nhé.";
+  var LOOKUP_NETWORK = "Chưa xem được đơn. Anh/chị thử lại nhé.";
 
   function apiBase() {
     return String((window.App && App.API_BASE) || "").trim().replace(/\/+$/, "");
@@ -162,36 +162,62 @@
     return items;
   }
 
+  var REQUEST_RETRIES = 2;
+  var REQUEST_RETRY_MS = 60000;
+
+  function wait(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
   function request(path, options) {
     var opts = options || {};
     var base = apiBase();
-    if (!base) return Promise.reject(fail("Chưa cấu hình địa chỉ máy chủ."));
-    var timeout = opts.timeout || CATALOG_TIMEOUT;
-    var controller = typeof AbortController === "function" ? new AbortController() : null;
-    var timer = controller ? setTimeout(function () { controller.abort(); }, timeout) : 0;
-    var init = {
-      method: opts.method || "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store"
-    };
-    if (opts.body != null) {
-      init.headers["Content-Type"] = "application/json";
-      init.body = JSON.stringify(opts.body);
-    }
-    if (controller) init.signal = controller.signal;
-    return fetch(apiUrl(path), init).then(function (res) {
-      return res.text().then(function (text) {
-        var data = null;
-        if (text) {
-          try { data = JSON.parse(text); } catch (error) { data = null; }
-        }
-        return { ok: res.ok, status: res.status, data: data };
+    if (!base) return Promise.reject(fail("Chưa kết nối được quán."));
+
+    function once(timeout) {
+      var controller = typeof AbortController === "function" ? new AbortController() : null;
+      var timer = controller ? setTimeout(function () { controller.abort(); }, timeout) : 0;
+      var init = {
+        method: opts.method || "GET",
+        headers: { Accept: "application/json" },
+        cache: "no-store"
+      };
+      if (opts.body != null) {
+        init.headers["Content-Type"] = "application/json";
+        init.body = JSON.stringify(opts.body);
+      }
+      if (controller) init.signal = controller.signal;
+      return fetch(apiUrl(path), init).then(function (res) {
+        return res.text().then(function (text) {
+          var data = null;
+          if (text) {
+            try { data = JSON.parse(text); } catch (error) { data = null; }
+          }
+          return { ok: res.ok, status: res.status, data: data };
+        });
+      }).catch(function () {
+        throw fail(opts.networkMessage || LOOKUP_NETWORK, { network: true });
+      }).finally(function () {
+        if (timer) clearTimeout(timer);
       });
-    }).catch(function () {
-      throw fail(opts.networkMessage || LOOKUP_NETWORK, { network: true });
-    }).finally(function () {
-      if (timer) clearTimeout(timer);
-    });
+    }
+
+    function attempt(tryIndex) {
+      var timeout = tryIndex === 0 ? (opts.timeout || CATALOG_TIMEOUT) : Math.max(opts.timeout || CATALOG_TIMEOUT, REQUEST_RETRY_MS);
+      return once(timeout).then(function (packet) {
+        if (packet && packet.status >= 500 && tryIndex < REQUEST_RETRIES) {
+          return wait(800 * (tryIndex + 1)).then(function () { return attempt(tryIndex + 1); });
+        }
+        return packet;
+      }).catch(function (error) {
+        if (error && error.network && tryIndex < REQUEST_RETRIES) {
+          return wait(800 * (tryIndex + 1)).then(function () { return attempt(tryIndex + 1); });
+        }
+        throw error;
+      });
+    }
+
+    return attempt(0);
   }
 
   function problemMessage(data, status) {
@@ -228,7 +254,7 @@
       }
       var shop = shopFromApi(parts[0].data);
       var menu = menuFromApi(parts[1].data);
-      if (!shop.name) throw fail("Máy chủ chưa có thông tin quán.");
+      if (!shop.name) throw fail("Chưa có thông tin quán.");
       return { shop: shop, menu: menu };
     });
   }
@@ -238,7 +264,7 @@
     var force = consumeForce();
     if (!base) {
       App.MENU = [];
-      setStatus("Chưa cấu hình địa chỉ máy chủ.", true);
+      setStatus("Chưa kết nối được quán.", true);
       App.catalog = { source: "error", failed: true };
       return Promise.resolve(App.catalog);
     }
@@ -261,7 +287,7 @@
       var message = (error && error.message) || CATALOG_NETWORK;
       if (cached && cached.menu && cached.menu.length) {
         applyCatalog(cached.shop, cached.menu);
-        setStatus(message + " Đang hiện bản đã lưu trên máy.", true, retryCatalog);
+        setStatus(message + " Đang hiện thực đơn đã xem gần đây.", true, retryCatalog);
         App.catalog = { source: "cache", stale: true };
         return App.catalog;
       }

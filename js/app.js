@@ -428,7 +428,7 @@
     if (!featured) return;
     if (catalogBlocked()) {
       featured.innerHTML =
-        '<div class="empty" role="status"><h2>Chưa tải được thực đơn</h2><p>Máy chủ có thể đang khởi động. Đợi vài giây rồi thử lại.</p>' +
+        '<div class="empty" role="status"><h2>Chưa tải được thực đơn</h2><p>Anh/chị thử lại nhé.</p>' +
         '<p class="stack-actions" style="justify-content:center"><button type="button" class="btn btn-primary" data-catalog-retry>Thử lại</button></p></div>';
       return;
     }
@@ -444,7 +444,7 @@
     if (catalogBlocked()) {
       root.innerHTML =
         '<div class="empty" role="status"><h2>Chưa tải được thực đơn</h2>' +
-        '<p>Máy chủ có thể đang khởi động. Đợi vài giây rồi thử lại.</p>' +
+        '<p>Anh/chị thử lại nhé.</p>' +
         '<p class="stack-actions" style="justify-content:center"><button type="button" class="btn btn-primary" data-catalog-retry>Thử lại</button></p></div>';
       return;
     }
@@ -1078,7 +1078,7 @@
     const order = loadOrders()[params.get("id") || ""];
     if (!order) {
       root.innerHTML =
-        '<div class="empty"><h2>Không thấy đơn trên máy này</h2><p>Nhập mã và số điện thoại lúc đặt để xem đơn.</p></div>' +
+        '<div class="empty"><h2>Không thấy đơn</h2><p>Nhập mã và số điện thoại lúc đặt để xem đơn.</p></div>' +
         lookupMarkup(params.get("id") || "");
       bindLookup(root);
       return;
@@ -1106,7 +1106,7 @@
       : "";
     root.innerHTML =
       '<article class="ticket">' +
-        '<p class="eyebrow">' + (order.sent ? "Đã gửi cho quán" : "Đơn lưu trên máy này") + "</p>" +
+        '<p class="eyebrow">' + (order.sent ? "Đã gửi cho quán" : "Chưa gửi cho quán") + "</p>" +
         '<h2 class="order-code">' + esc(order.id) + "</h2>" +
         '<p class="muted">' + esc(time) + " · " + esc(shop().name || "") + "</p>" +
         "<p>" + (order.sent
@@ -1149,8 +1149,8 @@
     const lead = $("#orders-lead");
     if (lead) {
       lead.textContent = list.length
-        ? "Chỉ lưu trên trình duyệt này."
-        : "Chưa có đơn nào trên máy này.";
+        ? "Các đơn gần đây của bạn."
+        : "Chưa có đơn nào.";
     }
     if (!list.length) {
       root.innerHTML =
@@ -1178,7 +1178,7 @@
       '<div class="card" id="wipe-box">' +
         '<p class="stack-actions"><button type="button" class="btn btn-ghost" data-history-wipe-ask>Xóa tất cả</button></p>' +
         '<div id="wipe-confirm" hidden>' +
-          "<p>Xóa hết đơn đã lưu trên máy này? Không khôi phục được trên trình duyệt này.</p>" +
+          "<p>Xóa hết các đơn trên trang này? Không lấy lại được.</p>" +
           '<p class="stack-actions"><button type="button" class="btn btn-primary" data-history-wipe-yes>Xóa hết</button>' +
           '<button type="button" class="btn btn-ghost" data-history-wipe-no>Giữ lại</button></p>' +
         "</div>" +
@@ -1189,15 +1189,15 @@
   function renderHistoryDetail(root, order) {
     const lead = $("#orders-lead");
     if (!order) {
-      if (lead) lead.textContent = "Mã này không có trong trình duyệt hiện tại.";
+      if (lead) lead.textContent = "Không thấy đơn này.";
       root.innerHTML =
-        '<div class="empty"><h2>Không thấy đơn</h2><p>Đơn này chưa được lưu trên máy này. Tra cứu bằng số điện thoại lúc đặt.</p></div>' +
+        '<div class="empty"><h2>Không thấy đơn</h2><p>Không thấy đơn này. Tra cứu bằng số điện thoại lúc đặt.</p></div>' +
         lookupMarkup(new URLSearchParams(location.search).get("id") || "") +
         '<p class="stack-actions"><a class="btn btn-ghost" href="orders.html">Về đơn của tôi</a></p>';
       bindLookup(root);
       return;
     }
-    if (lead) lead.textContent = "Chỉ có trên trình duyệt này.";
+    if (lead) lead.textContent = "Chi tiết đơn.";
     const customer = order.customer || {};
     const phone = prettyPhone(String(customer.phone || "").replace(/\D/g, "")) || customer.phone || "";
     const lines = (order.lines || []).map(function (line) {
