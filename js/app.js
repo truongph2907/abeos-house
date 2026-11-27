@@ -816,6 +816,66 @@
     if (field && field.setAttribute) field.setAttribute("aria-invalid", message ? "true" : "false");
   }
 
+  var ADDRESS_REQUIRED = "Nhập địa chỉ giao hàng.";
+  var ADDRESS_TOO_SHORT = "Địa chỉ hơi ngắn, anh/chị ghi rõ số nhà, đường giúp quán nhé.";
+
+  function deliveryAddressError(address) {
+    const value = String(address || "").trim();
+    if (!value) return ADDRESS_REQUIRED;
+    if (value.length < 5) return ADDRESS_TOO_SHORT;
+    return "";
+  }
+
+  function checkoutErrors(form, cart) {
+    const name = form.elements.name.value.trim();
+    const phone = normalizePhone(form.elements.phone.value);
+    const method = selectedValue(form, "fulfillment", "delivery");
+    const address = form.elements.address.value.trim();
+    const errors = {};
+    if (name.length < 2) errors.name = "Nhập họ tên.";
+    if (!phone) errors.phone = "Số điện thoại chưa đúng. Ví dụ 0901234567.";
+    if (method === "delivery") {
+      const addressError = deliveryAddressError(address);
+      if (addressError) errors.address = addressError;
+    }
+    const emptyCart = !cart || !cart.length;
+    const labels = { name: "họ tên", phone: "số điện thoại", address: "địa chỉ giao hàng" };
+    const missing = ["name", "phone", "address"].filter(function (key) { return errors[key]; });
+    let summary = "";
+    if (emptyCart) summary = "Giỏ đang trống.";
+    else if (missing.length === 1) summary = errors[missing[0]];
+    else if (missing.length > 1) summary = "Còn thiếu: " + missing.map(function (key) { return labels[key]; }).join(", ") + ".";
+    return {
+      valid: missing.length === 0 && !emptyCart,
+      firstField: missing[0] || "",
+      errors: errors,
+      summary: summary
+    };
+  }
+
+  function applyCheckoutErrors(form, result) {
+    setFieldError(form, "name", (result.errors && result.errors.name) || "");
+    setFieldError(form, "phone", (result.errors && result.errors.phone) || "");
+    setFieldError(form, "address", (result.errors && result.errors.address) || "");
+    setFieldError(form, "form", result.summary || "");
+  }
+
+  function focusCheckoutField(form, name) {
+    const field = name && form.elements[name];
+    if (!field) return;
+    try { field.focus(); } catch (error) { /* bỏ qua */ }
+    if (field.scrollIntoView) {
+      try { field.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (error) {
+        field.scrollIntoView(true);
+      }
+    }
+  }
+
+  function refreshCheckoutErrors(form) {
+    if (!form || form.dataset.checkoutTried !== "1") return;
+    applyCheckoutErrors(form, checkoutErrors(form, loadCart()));
+  }
+
   function normalizePhone(value) {
     const compact = String(value || "").replace(/[\s.\-]/g, "");
     if (/^0\d{9}$/.test(compact)) return compact;
@@ -887,7 +947,7 @@
           '<label class="field">Ghi chú cho quán<textarea name="note" maxlength="240" placeholder="Ví dụ: gọi trước khi giao"></textarea></label>' +
           "<fieldset><legend>Thanh toán</legend>" +
             '<label class="option-card"><input type="radio" name="payment" value="cash" checked><span>Tiền mặt khi nhận<small>Trả khi lấy món</small></span></label>' +
-            '<label class="option-card"><input type="radio" name="payment" value="transfer"><span>Chuyển khoản<small>Hiện số tài khoản mẫu</small></span></label>' +
+            '<label class="option-card"><input type="radio" name="payment" value="transfer"><span>Chuyển khoản<small>Chuyển khoản trước khi nhận món</small></span></label>' +
           "</fieldset>" +
           '<div id="bank-preview" class="notice" hidden><strong>' + (bank.placeholder ? "Tài khoản mẫu" : "Chuyển khoản") + '</strong><p>' + esc(bank.note || "") + "</p>" +
             "<p>" + esc(bank.bankName || "") + " · " + esc(bank.accountNumber || "") + " · " + esc(bank.accountName || "") + "</p></div>" +
@@ -897,8 +957,14 @@
         '<div id="checkout-summary"></div>' +
       "</form>";
     const form = $("#checkout-form");
-    form.addEventListener("input", refreshCheckoutSummary);
-    form.addEventListener("change", refreshCheckoutSummary);
+    form.addEventListener("input", function () {
+      refreshCheckoutSummary();
+      refreshCheckoutErrors(form);
+    });
+    form.addEventListener("change", function () {
+      refreshCheckoutSummary();
+      refreshCheckoutErrors(form);
+    });
     form.addEventListener("submit", submitOrder);
     refreshCheckoutSummary();
   }
@@ -925,28 +991,13 @@
     const address = form.elements.address.value.trim();
     const note = form.elements.note.value.trim().slice(0, 240);
     const payment = selectedValue(form, "payment", "cash");
-    let valid = true;
-    setFieldError(form, "name", "");
-    setFieldError(form, "phone", "");
-    setFieldError(form, "address", "");
-    setFieldError(form, "form", "");
-    if (name.length < 2) {
-      setFieldError(form, "name", "Nhập họ tên.");
-      valid = false;
+    const checked = checkoutErrors(form, cart);
+    form.dataset.checkoutTried = "1";
+    applyCheckoutErrors(form, checked);
+    if (!checked.valid) {
+      focusCheckoutField(form, checked.firstField);
+      return;
     }
-    if (!phone) {
-      setFieldError(form, "phone", "Số điện thoại chưa đúng. Ví dụ 0901234567.");
-      valid = false;
-    }
-    if (method === "delivery" && address.length < 5) {
-      setFieldError(form, "address", "Nhập địa chỉ giao hàng.");
-      valid = false;
-    }
-    if (!cart.length) {
-      setFieldError(form, "form", "Giỏ đang trống.");
-      valid = false;
-    }
-    if (!valid) return;
     const orderId = pendingOrderId();
     const button = form.querySelector("[type=submit]");
     if (button.disabled) return;
@@ -987,11 +1038,14 @@
     }).catch(function (error) {
       button.disabled = false;
       button.textContent = previousLabel;
+      form.dataset.checkoutTried = "1";
       const fields = (error && error.fields) || {};
       if (fields.customerName) setFieldError(form, "name", fields.customerName);
       if (fields.phone) setFieldError(form, "phone", fields.phone);
       if (fields.address) setFieldError(form, "address", fields.address);
       setFieldError(form, "form", (error && error.message) || "Không gửi được đơn. Giỏ vẫn còn.");
+      const first = fields.customerName ? "name" : fields.phone ? "phone" : fields.address ? "address" : "";
+      if (first) focusCheckoutField(form, first);
     });
   }
 
