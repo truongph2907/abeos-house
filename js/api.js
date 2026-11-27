@@ -340,8 +340,18 @@
       sugar: String(line.sugarLabel || line.sugar || "").trim(),
       ice: String(line.iceLabel || line.ice || "").trim(),
       toppings: splitToppings(toppings),
+      extras: cleanExtras(line.extras),
       note: String(line.note || "").slice(0, 140)
     };
+  }
+
+  function cleanExtras(extras) {
+    return (Array.isArray(extras) ? extras : []).map(function (pick) {
+      return {
+        group: String((pick && pick.group) || "").trim(),
+        choices: splitToppings(pick && pick.choices)
+      };
+    }).filter(function (pick) { return pick.group && pick.choices.length; });
   }
 
   function toRequest(payload) {
@@ -377,6 +387,7 @@
         iceLabel: ice,
         toppingIds: toppings.slice(),
         toppingLabels: toppings,
+        extras: cleanExtras(item.extras),
         note: item.note || "",
         quantity: Number(item.quantity) || 0,
         unitPrice: Number(item.unitPrice) || 0

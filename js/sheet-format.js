@@ -177,15 +177,41 @@
     return { id: label, label: label, extra: amount, price: amount };
   }
 
+  function groupKey(label) {
+    return fold(label).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  }
+
+  var MULTI_MARK = /\s*\[(?:multi|nhi[eềệ]u)\]\s*$/i;
+
   function parseOptions(text) {
-    var options = { sizes: [], sugar: [], ice: [], toppings: [] };
+    var options = { sizes: [], sugar: [], ice: [], toppings: [], groups: [] };
+    var groupIndex = {};
     String(text || "").split(/\r?\n/).forEach(function (line) {
       var trimmed = line.trim();
       if (!trimmed || trimmed.charAt(0) === "#") return;
       var splitAt = trimmed.indexOf(":");
       if (splitAt === -1) return;
-      var kind = optionKind(trimmed.slice(0, splitAt));
-      if (!kind) return;
+      var head = trimmed.slice(0, splitAt).trim();
+      var kind = optionKind(head);
+      if (!kind) {
+        var multi = MULTI_MARK.test(head);
+        var label = head.replace(MULTI_MARK, "").trim();
+        var key = groupKey(label);
+        if (!label || label.length > 40 || !key) return;
+        var group = groupIndex[key];
+        if (!group) {
+          if (options.groups.length >= 12) return;
+          group = { key: key, label: label, multi: false, choices: [] };
+          groupIndex[key] = group;
+          options.groups.push(group);
+        }
+        group.multi = group.multi || multi;
+        trimmed.slice(splitAt + 1).split("|").forEach(function (part) {
+          var choice = parseChoice(part);
+          if (choice) group.choices.push(choice);
+        });
+        return;
+      }
       trimmed.slice(splitAt + 1).split("|").forEach(function (part) {
         var choice = parseChoice(part);
         if (!choice) return;
@@ -195,6 +221,7 @@
         else options.toppings.push(choice);
       });
     });
+    options.groups = options.groups.filter(function (group) { return group.choices.length; });
     return options;
   }
 
@@ -353,7 +380,7 @@
     return null;
   }
 
-  function lineUnitPrice(item, sizeId, toppingIds) {
+  function lineUnitPrice(item, sizeId, toppingIds, extras) {
     var options = (item && item.options) || { sizes: [], toppings: [] };
     var sizes = options.sizes || [];
     var size = findChoice(sizes, sizeId);
@@ -367,6 +394,16 @@
     var extra = 0;
     (options.toppings || []).forEach(function (topping) {
       if (ids.indexOf(topping.id) !== -1 || ids.indexOf(topping.label) !== -1) extra += Number(topping.price) || 0;
+    });
+    (extras || []).forEach(function (pick) {
+      var wantedKey = groupKey(pick && pick.group);
+      var group = (options.groups || []).filter(function (entry) { return entry.key === wantedKey; })[0];
+      if (!group) return;
+      (pick.choices || []).forEach(function (label) {
+        group.choices.forEach(function (choice) {
+          if (choice.label === label) extra += Number(choice.price) || 0;
+        });
+      });
     });
     return Math.max(0, Number(item.price) + (Number(size.extra) || 0) + extra);
   }
@@ -387,11 +424,11 @@
     var toppings = group.map(function (topping) {
       return { id: topping.name, label: topping.name, extra: topping.price, price: topping.price };
     });
-    return { sizes: sizes, sugar: sugar, ice: ice, toppings: toppings };
+    return { sizes: sizes, sugar: sugar, ice: ice, toppings: toppings, groups: [] };
   }
 
   function ensureOptions(item) {
-    if (!item) return { sizes: [], sugar: [], ice: [], toppings: [] };
+    if (!item) return { sizes: [], sugar: [], ice: [], toppings: [], groups: [] };
     if (!item.options) item.options = legacyOptions(item);
     return item.options;
   }
@@ -415,6 +452,7 @@
   App.driveImageUrl = driveImageUrl;
   App.normalizeSpreadsheetId = normalizeSpreadsheetId;
   App.parseOptions = parseOptions;
+  App.groupKey = groupKey;
   App.shopFromRows = shopFromRows;
   App.shopFromCsv = shopFromCsv;
   App.mergeShop = mergeShop;

@@ -1315,3 +1315,9 @@ html:has(body[data-page="admin"]) { scroll-padding-top: 96px; }
     grid-template-areas: "name price up down del";
   }
 }
+
+.admin-custom-head { gap: 8px; padding: 8px; }
+.admin-group-name { flex: 1; min-width: 0; font-weight: 750; }
+.admin-custom-groups:empty { display: none; }
+.admin-add-group { width: 100%; min-height: 48px; margin-top: 4px; }
+.admin-option-group.is-custom { border-style: dashed; }

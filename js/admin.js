@@ -832,7 +832,7 @@
   }
 
   function parseOptionText(text) {
-    var empty = { size: [], sugar: [], ice: [], topping: [] };
+    var empty = { size: [], sugar: [], ice: [], topping: [], custom: [] };
     var parsed;
     if (window.App && typeof App.parseOptions === "function") {
       parsed = App.parseOptions(text);
@@ -843,7 +843,10 @@
       size: (parsed.sizes || []).map(choiceToOptionItem),
       sugar: (parsed.sugar || []).map(choiceToOptionItem),
       ice: (parsed.ice || []).map(choiceToOptionItem),
-      topping: (parsed.toppings || []).map(choiceToOptionItem)
+      topping: (parsed.toppings || []).map(choiceToOptionItem),
+      custom: (parsed.groups || []).map(function (group) {
+        return { label: group.label, multi: !!group.multi, items: group.choices.map(choiceToOptionItem) };
+      })
     };
   }
 
@@ -873,7 +876,46 @@
       });
       if (parts.length) lines.push(group.key + ": " + parts.join(" | "));
     });
+    Array.prototype.forEach.call(root.querySelectorAll("[data-custom]"), function (section) {
+      var label = cleanGroupLabel(section.querySelector("[data-group-name]").value);
+      var multi = section.querySelector("[data-group-multi]").checked;
+      var parts = [];
+      Array.prototype.forEach.call(section.querySelectorAll("[data-option-row]"), function (row) {
+        var part = formatOptionChoice(row.querySelector("[data-opt-name]").value, row.querySelector("[data-opt-extra]").value, false);
+        if (part) parts.push(part);
+      });
+      if (label && parts.length) lines.push(label + (multi ? " [multi]" : "") + ": " + parts.join(" | "));
+    });
     return lines.join("\n");
+  }
+
+  function cleanGroupLabel(value) {
+    return String(value || "").replace(/[:|\[\]\r\n]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+  }
+
+  function optionsProblem(root) {
+    if (!root) return "";
+    var seen = {};
+    var message = "";
+    Array.prototype.forEach.call(root.querySelectorAll("[data-custom]"), function (section) {
+      if (message) return;
+      var raw = section.querySelector("[data-group-name]").value;
+      var label = cleanGroupLabel(raw);
+      var filled = Array.prototype.some.call(section.querySelectorAll("[data-opt-name]"), function (input) { return input.value.trim(); });
+      if (!label) { message = filled ? "Nhập tên cho nhóm lựa chọn." : ""; return; }
+      var key = App.groupKey(label);
+      var asBuiltIn = App.parseOptions(label + ": x");
+      if (asBuiltIn.sizes.length || asBuiltIn.sugar.length || asBuiltIn.ice.length || asBuiltIn.toppings.length) {
+        message = "Tên nhóm \"" + label + "\" trùng nhóm có sẵn. Đặt tên khác.";
+      } else if (seen[key]) {
+        message = "Có hai nhóm tên \"" + label + "\". Đặt tên khác nhau.";
+      } else if (!filled) {
+        message = "Nhóm \"" + label + "\" cần ít nhất một lựa chọn.";
+      }
+      seen[key] = true;
+    });
+    if (!message && serializeOptionsEditor(root).length > 3900) message = "Lựa chọn quá dài. Bớt bớt một số lựa chọn.";
+    return message;
   }
 
   function optionRow(item) {
@@ -900,7 +942,7 @@
     var rows = body.querySelector(".admin-option-rows");
     (items || []).forEach(function (item) { rows.appendChild(optionRow(item)); });
     var toggle = h("input", { type: "checkbox", "data-opt-enabled": "true", checked: on, "aria-label": "Bật nhóm " + group.label });
-    var fold = h("button", { type: "button", class: "admin-option-fold", "data-opt-fold": "true", "aria-expanded": on ? "true" : "false", text: group.label });
+    var fold = h("button", { type: "button", class: "admin-option-fold", "data-opt-fold": "true", "data-label": group.label, "aria-expanded": on ? "true" : "false", text: group.label });
     var section = h("section", {
       class: "admin-option-group" + (on ? " is-enabled is-open" : ""),
       "data-group": group.key,
@@ -916,8 +958,38 @@
     return section;
   }
 
+  function updateGroupMeta(section) {
+    var fold = section.querySelector("[data-opt-fold]");
+    if (!fold) return;
+    var base = fold.getAttribute("data-label") || "";
+    var count = Array.prototype.filter.call(section.querySelectorAll("[data-opt-name]"), function (input) { return input.value.trim(); }).length;
+    var enabled = section.getAttribute("data-enabled") === "true";
+    fold.textContent = base + (enabled ? " · " + count + " lựa chọn" : " · tắt");
+  }
+
+  function customGroupSection(group) {
+    group = group || { label: "", multi: false, items: [{ name: "", extra: 0 }] };
+    var rows = h("div", { class: "admin-option-rows" });
+    (group.items || []).forEach(function (item) { rows.appendChild(optionRow(item)); });
+    return h("section", { class: "admin-option-group is-enabled is-open is-custom", "data-group": "custom", "data-custom": "true", "data-enabled": "true", children: [
+      h("div", { class: "admin-option-head admin-custom-head", children: [
+        h("input", { class: "admin-option-name admin-group-name", "data-group-name": "true", type: "text", maxlength: "40", value: group.label || "", placeholder: "Tên nhóm, ví dụ Độ cay", "aria-label": "Tên nhóm lựa chọn" }),
+        h("button", { type: "button", class: "admin-option-icon admin-option-del", "data-group-del": "true", "aria-label": "Xóa nhóm", text: "×" })
+      ]}),
+      h("div", { class: "admin-option-body", children: [
+        h("label", { class: "checkline", children: [
+          h("input", { type: "checkbox", "data-group-multi": "true", checked: !!group.multi }),
+          "Cho chọn nhiều lựa chọn (không chọn cũng được)"
+        ]}),
+        rows,
+        h("button", { type: "button", class: "text-btn admin-option-add", "data-opt-add": "true", text: "+ Thêm lựa chọn" })
+      ]})
+    ]});
+  }
+
   function syncOptionsEditor(root) {
     if (!root) return "";
+    Array.prototype.forEach.call(root.querySelectorAll("[data-group]:not([data-custom])"), updateGroupMeta);
     var hidden = root.querySelector('textarea[name="options"]');
     var value = serializeOptionsEditor(root);
     if (hidden) hidden.value = value;
@@ -933,6 +1005,10 @@
       var items = parsed[group.key] || [];
       wrap.appendChild(optionGroupSection(group, items, items.length > 0));
     });
+    var customHost = h("div", { class: "admin-custom-groups" });
+    (parsed.custom || []).forEach(function (group) { customHost.appendChild(customGroupSection(group)); });
+    wrap.appendChild(customHost);
+    wrap.appendChild(h("button", { type: "button", class: "btn btn-ghost admin-add-group", "data-add-group": "true", text: "+ Thêm nhóm lựa chọn" }));
     wrap.appendChild(h("p", { class: "field-error", "data-error": "options" }));
     wrap.setAttribute("aria-labelledby", "options-label");
 
@@ -972,6 +1048,23 @@
         var open = !section.classList.contains("is-open");
         section.classList.toggle("is-open", open);
         fold.setAttribute("aria-expanded", open ? "true" : "false");
+        return;
+      }
+      var addGroup = event.target.closest("[data-add-group]");
+      if (addGroup) {
+        var created = customGroupSection(null);
+        customHost.appendChild(created);
+        created.querySelector("[data-group-name]").focus();
+        syncOptionsEditor(wrap);
+        return;
+      }
+      var delGroup = event.target.closest("[data-group-del]");
+      if (delGroup) {
+        var doomed = delGroup.closest("[data-custom]");
+        var named = doomed.querySelector("[data-group-name]").value.trim();
+        if (named && !window.confirm("Xóa nhóm " + named + "?")) return;
+        doomed.parentNode.removeChild(doomed);
+        syncOptionsEditor(wrap);
         return;
       }
       var add = event.target.closest("[data-opt-add]");
@@ -1087,6 +1180,7 @@
       category: String(form.elements.category.value || ""),
       description: String(form.elements.description.value || "").trim(),
       imageUrl: String(form.elements.imageUrl.value || "").trim(),
+      optionsProblem: optionsProblem(form.querySelector("[data-options-editor]")),
       options: (function () { var editor = form.querySelector("[data-options-editor]"); return editor ? serializeOptionsEditor(editor) : String((form.elements.options && form.elements.options.value) || "").trim(); })(),
       sortOrder: sortRaw === "" ? 0 : Number(sortRaw),
       noteHint: String(form.elements.noteHint.value || "").trim(),
@@ -1104,6 +1198,7 @@
     if (!Number.isFinite(edit.price) || edit.price < 0) fields.price = "Nhập giá là số từ 0 trở lên.";
     if (edit.category !== "drink" && edit.category !== "food") fields.category = "Chọn đồ uống hoặc đồ ăn.";
     if (!Number.isFinite(edit.sortOrder) || Math.round(edit.sortOrder) !== edit.sortOrder) fields.sortOrder = "Thứ tự phải là số nguyên.";
+    if (edit.optionsProblem) fields.options = edit.optionsProblem;
     if (safeImage(edit.imageUrl) == null) fields.imageUrl = "Đường dẫn ảnh không hợp lệ.";
     return fields;
   }
@@ -1309,6 +1404,7 @@
       sugar: raw.sugar || raw.sugarLabel || "",
       ice: raw.ice || raw.iceLabel || "",
       toppings: splitList(raw.toppings || raw.toppingLabels),
+      extras: Array.isArray(raw.extras) ? raw.extras : [],
       note: raw.note || ""
     };
   }
@@ -1344,6 +1440,9 @@
     if (item.sugar) bits.push("Đường " + item.sugar);
     if (item.ice) bits.push(/đá/i.test(item.ice) ? item.ice : "Đá " + item.ice);
     if (item.toppings.length) bits.push(item.toppings.join(", "));
+    item.extras.forEach(function (pick) {
+      if (pick && pick.group && pick.choices && pick.choices.length) bits.push(pick.group + ": " + pick.choices.join(", "));
+    });
     if (item.note) bits.push(item.note);
     return bits.join(" · ");
   }

@@ -71,7 +71,7 @@
 
   function itemOptions(item) {
     if (window.App && App.ensureOptions) return App.ensureOptions(item);
-    return (item && item.options) || { sizes: [], sugar: [], ice: [], toppings: [] };
+    return (item && item.options) || { sizes: [], sugar: [], ice: [], toppings: [], groups: [] };
   }
 
   function sizeText(item, sizeId) {
@@ -80,9 +80,9 @@
     return found ? found.label : sizeId;
   }
 
-  function unitPrice(item, sizeId, toppingIds) {
+  function unitPrice(item, sizeId, toppingIds, extras) {
     itemOptions(item);
-    if (window.App && App.lineUnitPrice) return App.lineUnitPrice(item, sizeId, toppingIds);
+    if (window.App && App.lineUnitPrice) return App.lineUnitPrice(item, sizeId, toppingIds, extras);
     return Number(item.price) || 0;
   }
 
@@ -186,6 +186,12 @@
     return vietnamClock(order && order.createdAt) || placed;
   }
 
+  function copyExtras(extras) {
+    return (Array.isArray(extras) ? extras : []).map(function (pick) {
+      return { group: String(pick.group || ""), choices: (pick.choices || []).map(String) };
+    }).filter(function (pick) { return pick.group && pick.choices.length; });
+  }
+
   function snapshotLine(line, unitPriceOverride) {
     const quantity = Math.max(1, Math.min(20, Number(line.quantity || line.qty) || 1));
     const price = unitPriceOverride != null ? Number(unitPriceOverride) : Number(line.unitPrice) || 0;
@@ -201,6 +207,7 @@
       iceLabel: line.iceLabel || "",
       toppingIds: (line.toppingIds || []).slice(),
       toppingLabels: (line.toppingLabels || []).slice(),
+      extras: copyExtras(line.extras),
       note: line.note || "",
       quantity: quantity,
       unitPrice: Number.isFinite(price) ? price : 0
@@ -296,6 +303,14 @@
           toppingLabels.push(name);
         }
       });
+      const extras = [];
+      (options.groups || []).forEach(function (group) {
+        const savedPick = (saved.extras || []).find(function (pick) { return App.groupKey(pick.group) === group.key; });
+        let labels = savedPick ? group.choices.filter(function (choice) { return savedPick.choices.indexOf(choice.label) !== -1; }).map(function (choice) { return choice.label; }) : [];
+        if (!group.multi) labels = labels.slice(0, 1);
+        if (!labels.length && !group.multi) labels = [defaultGroupChoice(group).label];
+        if (labels.length) extras.push({ group: group.label, choices: labels });
+      });
       const line = {
         lineId: uid(),
         itemId: item.id,
@@ -309,9 +324,10 @@
         iceLabel: ice ? ice.label : "",
         toppingIds: toppingIds,
         toppingLabels: toppingLabels,
+        extras: extras,
         note: String(saved.note || "").slice(0, 140),
         quantity: Math.max(1, Math.min(20, Number(saved.quantity) || 1)),
-        unitPrice: unitPrice(item, size ? size.id : "", toppingIds)
+        unitPrice: unitPrice(item, size ? size.id : "", toppingIds, extras)
       };
       const sig = signature(line);
       const existing = cart.find(function (row) { return signature(row) === sig; });
@@ -334,7 +350,10 @@
 
   function signature(line) {
     const toppings = (line.toppingIds || []).slice().sort().join(",");
-    return [line.itemId, line.size, line.sugar || "", line.ice || "", toppings, (line.note || "").trim()].join("|");
+    const extras = (line.extras || []).map(function (pick) {
+      return pick.group + "=" + (pick.choices || []).slice().sort().join(",");
+    }).sort().join(";");
+    return [line.itemId, line.size, line.sugar || "", line.ice || "", toppings, extras, (line.note || "").trim()].join("|");
   }
 
   function optionSummary(line) {
@@ -343,6 +362,9 @@
     if (line.sugarLabel) parts.push("Đường " + line.sugarLabel);
     if (line.iceLabel) parts.push(line.iceLabel);
     if (line.toppingLabels && line.toppingLabels.length) parts.push(line.toppingLabels.join(", "));
+    (line.extras || []).forEach(function (pick) {
+      if (pick.group && pick.choices && pick.choices.length) parts.push(pick.group + ": " + pick.choices.join(", "));
+    });
     if (line.note) parts.push("Ghi chú: " + line.note);
     return parts.join(" · ");
   }
@@ -513,6 +535,22 @@
     return modal;
   }
 
+  function defaultGroupChoice(group) {
+    return group.choices.find(function (choice) { return Number(choice.extra) === 0; }) || group.choices[0];
+  }
+
+  function groupHtml(group) {
+    const first = defaultGroupChoice(group);
+    const rows = group.choices.map(function (choice) {
+      const delta = choice.extra ? " " + (choice.extra > 0 ? "+" : "−") + formatVnd(Math.abs(choice.extra)) : "";
+      return '<label class="choice"><input type="' + (group.multi ? "checkbox" : "radio") +
+        '" name="extra-' + esc(group.key) + '" value="' + esc(choice.label) + '" data-extra-group="' + esc(group.key) + '"' +
+        (!group.multi && choice === first ? " checked" : "") + "> " + esc(choice.label + delta) + "</label>";
+    }).join("");
+    return '<div class="option-block"><h3>' + esc(group.label) + (group.multi ? ' <small class="muted">(chọn nhiều)</small>' : "") +
+      '</h3><div class="choice-row">' + rows + "</div></div>";
+  }
+
   function choiceHtml(name, value, label, checked) {
     return '<label class="choice"><input type="' + (name === "topping" ? "checkbox" : "radio") +
       '" name="' + name + '" value="' + esc(value) + '"' + (checked ? " checked" : "") + "> " +
@@ -558,6 +596,7 @@
         (sugar ? '<div class="option-block"><h3>Đường</h3><div class="choice-row">' + sugar + "</div></div>" : "") +
         (ice ? '<div class="option-block"><h3>Đá</h3><div class="choice-row">' + ice + "</div></div>" : "") +
         (toppings ? '<div class="option-block"><h3>Topping</h3><div class="choice-row">' + toppings + "</div></div>" : "") +
+        (options.groups || []).map(groupHtml).join("") +
         '<div class="option-block"><h3>Số lượng</h3><div class="qty">' +
           '<button type="button" data-qty-dec aria-label="Giảm số lượng">−</button>' +
           '<span data-qty-value>1</span>' +
@@ -600,6 +639,11 @@
     const toppings = (options.toppings || []).filter(function (topping) {
       return toppingIds.indexOf(topping.id) !== -1;
     });
+    const extras = [];
+    (options.groups || []).forEach(function (group) {
+      const labels = $all('input[data-extra-group="' + group.key + '"]:checked', sheet).map(function (input) { return input.value; });
+      if (labels.length) extras.push({ group: group.label, choices: labels });
+    });
     const note = ($("[data-note]", sheet).value || "").trim().slice(0, 140);
     const quantity = Math.max(1, Math.min(20, Number(sheet.dataset.qty) || 1));
     return {
@@ -615,9 +659,10 @@
       iceLabel: ice ? ice.label : "",
       toppingIds: toppings.map(function (topping) { return topping.id; }),
       toppingLabels: toppings.map(function (topping) { return topping.label || topping.name; }),
+      extras: extras,
       note: note,
       quantity: quantity,
-      unitPrice: unitPrice(item, sizeId, toppingIds)
+      unitPrice: unitPrice(item, sizeId, toppingIds, extras)
     };
   }
 
@@ -923,6 +968,7 @@
           sugar: line.sugarLabel || "",
           ice: line.iceLabel || "",
           toppings: line.toppingLabels || [],
+          extras: line.extras || [],
           qty: line.quantity,
           note: line.note || ""
         };
