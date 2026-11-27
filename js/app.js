@@ -1017,12 +1017,10 @@
     CANCELLED: "Đã hủy"
   };
 
-  function lookupMarkup(code) {
+  function lookupMarkup() {
     return (
       '<form id="order-lookup" class="card" novalidate>' +
         "<h2>Tra cứu đơn</h2>" +
-        '<label class="field">Mã đơn<input name="code" maxlength="12" autocomplete="off" autocapitalize="characters" placeholder="AB-XXXX" value="' + esc(code || "") + '"></label>' +
-        '<p class="field-error" data-error="code"></p>' +
         '<label class="field">Số điện thoại<input name="phone" inputmode="tel" autocomplete="tel" maxlength="16"></label>' +
         '<p class="field-error" data-error="phone"></p>' +
         '<p class="field-error" data-error="form"></p>' +
@@ -1055,19 +1053,6 @@
     }).join("");
   }
 
-  function renderLookupSummary(order) {
-    const slot = $("#lookup-result");
-    if (!slot) return;
-    slot.innerHTML =
-      '<article class="ticket">' +
-        '<p class="eyebrow">Tóm tắt đơn</p>' +
-        '<h2 class="order-code">' + esc(order.id) + "</h2>" +
-        "<p>" + esc(ORDER_STATUS[order.status] || order.status || "Đã ghi nhận") + "</p>" +
-        "<p>" + esc(order.itemCount) + " món · Tổng <strong>" + formatVnd(order.total) + "</strong></p>" +
-        '<p class="muted">Nhập số điện thoại lúc đặt để xem tên, món và địa chỉ.</p>' +
-      "</article>";
-  }
-
   function storeLookedUpOrder(order) {
     const orders = loadOrders();
     orders[order.id] = order;
@@ -1079,72 +1064,40 @@
   function submitLookup(event) {
     event.preventDefault();
     const form = event.currentTarget;
-    const code = form.elements.code.value.trim().toUpperCase();
     const phoneRaw = form.elements.phone.value.trim();
-    setFieldError(form, "code", "");
     setFieldError(form, "phone", "");
     setFieldError(form, "form", "");
     const result = $("#lookup-result");
     if (result) result.innerHTML = "";
-    if (!code && !phoneRaw) {
-      setFieldError(form, "form", "Nhập mã đơn hoặc số điện thoại.");
+    if (!phoneRaw) {
+      setFieldError(form, "phone", "Nhập số điện thoại lúc đặt.");
       return;
     }
-    if (code && !/^AB-[A-Z0-9]{4}$/.test(code)) {
-      setFieldError(form, "code", "Mã đơn phải dạng AB-XXXX.");
+    const phone = normalizePhone(phoneRaw);
+    if (!phone) {
+      setFieldError(form, "phone", "Số điện thoại chưa đúng. Ví dụ 0901234567.");
       return;
-    }
-    let phone = "";
-    if (phoneRaw) {
-      phone = normalizePhone(phoneRaw);
-      if (!phone) {
-        setFieldError(form, "phone", "Số điện thoại chưa đúng. Ví dụ 0901234567.");
-        return;
-      }
     }
     const button = form.querySelector("[type=submit]");
     if (!button || button.disabled) return;
     button.disabled = true;
     const previous = button.textContent;
     button.textContent = "Đang tìm đơn…";
-    const finder = !window.App
-      ? Promise.reject(new Error("Không tra cứu được đơn."))
-      : !code
-        ? (App.lookupOrdersByPhone
-          ? App.lookupOrdersByPhone(phone)
-          : Promise.reject(new Error("Không tra cứu được đơn.")))
-        : (App.lookupOrder
-          ? App.lookupOrder(code, phone)
-          : Promise.reject(new Error("Không tra cứu được đơn.")));
+    const finder = window.App && App.lookupOrdersByPhone
+      ? App.lookupOrdersByPhone(phone)
+      : Promise.reject(new Error("Không tra cứu được đơn."));
     finder.then(function (found) {
       button.disabled = false;
       button.textContent = previous;
-      if (Array.isArray(found)) {
-        found.forEach(function (order) {
-          if (order && !order.summary) storeLookedUpOrder(order);
-        });
-        renderLookupList(found);
-        return;
-      }
-      const order = found;
-      if (order.summary) {
-        renderLookupSummary(order);
-        return;
-      }
-      storeLookedUpOrder(order);
-      if (document.body.dataset.page === "order") {
-        const url = new URL(location.href);
-        url.searchParams.set("id", order.id);
-        history.replaceState(null, "", url.pathname + url.search);
-        renderOrder();
-        return;
-      }
-      location.href = "orders.html?id=" + encodeURIComponent(order.id);
+      const orders = Array.isArray(found) ? found : [];
+      orders.forEach(function (order) {
+        if (order && !order.summary) storeLookedUpOrder(order);
+      });
+      renderLookupList(orders);
     }).catch(function (error) {
       button.disabled = false;
       button.textContent = previous;
       const fields = (error && error.fields) || {};
-      if (fields.code) setFieldError(form, "code", fields.code);
       if (fields.phone) setFieldError(form, "phone", fields.phone);
       setFieldError(form, "form", (error && error.message) || "Không tìm được đơn.");
     });
@@ -1164,8 +1117,8 @@
     const order = loadOrders()[params.get("id") || ""];
     if (!order) {
       root.innerHTML =
-        '<div class="empty"><h2>Không thấy đơn</h2><p>Nhập mã đơn hoặc số điện thoại lúc đặt để xem đơn.</p></div>' +
-        lookupMarkup(params.get("id") || "");
+        '<div class="empty"><h2>Không thấy đơn</h2><p>Nhập số điện thoại lúc đặt để xem đơn.</p></div>' +
+        lookupMarkup();
       bindLookup(root);
       return;
     }
@@ -1240,7 +1193,7 @@
     }
     if (!list.length) {
       root.innerHTML =
-        lookupMarkup("") +
+        lookupMarkup() +
         '<div class="empty"><h2>Chưa có đơn</h2><p>Đơn đã gửi thành công sẽ hiện ở đây, mới nhất trước.</p>' +
         '<p class="stack-actions" style="justify-content:center"><a class="btn btn-primary" href="menu.html">Mở thực đơn</a></p></div>';
       bindLookup(root);
@@ -1259,7 +1212,7 @@
       );
     }).join("");
     root.innerHTML =
-      lookupMarkup("") +
+      lookupMarkup() +
       '<div class="history-head">' +
         "<h2>Đơn đã đặt</h2>" +
         '<button type="button" class="history-wipe" data-history-wipe-ask>Xóa tất cả</button>' +
@@ -1279,7 +1232,7 @@
       if (lead) lead.textContent = "Không thấy đơn này.";
       root.innerHTML =
         '<div class="empty"><h2>Không thấy đơn</h2><p>Không thấy đơn này. Tra cứu bằng số điện thoại lúc đặt.</p></div>' +
-        lookupMarkup(new URLSearchParams(location.search).get("id") || "") +
+        lookupMarkup() +
         '<p class="stack-actions"><a class="btn btn-ghost" href="orders.html">Về đơn của tôi</a></p>';
       bindLookup(root);
       return;
