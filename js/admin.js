@@ -145,6 +145,42 @@
     return String(value || "").split("|").map(function (item) { return item.trim(); }).filter(Boolean);
   }
 
+
+  function showBrandMarkFallback(mark) {
+    mark.textContent = "AB";
+    mark.setAttribute("aria-hidden", "true");
+  }
+
+  function applyBrandLogo(shop) {
+    var logo = displayImageUrl(shop && shop.logo);
+    var name = (shop && shop.name) || "A Béo's House";
+    document.querySelectorAll(".brand-mark").forEach(function (mark) {
+      if (logo) {
+        mark.removeAttribute("aria-hidden");
+        mark.textContent = "";
+        var img = document.createElement("img");
+        img.className = "brand-logo";
+        img.src = logo;
+        img.alt = name;
+        img.addEventListener("error", function () {
+          if (img.parentNode === mark) showBrandMarkFallback(mark);
+        });
+        mark.appendChild(img);
+      } else {
+        showBrandMarkFallback(mark);
+      }
+    });
+    var icon = document.querySelector('link[rel="icon"]');
+    if (icon && logo) icon.href = logo;
+  }
+
+  function loadPublicBrand() {
+    request("GET", "/api/shop", null, { anonymous: true }).then(function (data) {
+      if (!data || typeof data !== "object" || Array.isArray(data)) return;
+      applyBrandLogo(data);
+    }).catch(function () { /* giữ chữ AB nếu chưa tải được logo */ });
+  }
+
   function displayImageUrl(value) {
     var url = String(value || "").trim();
     if (!url || /^(javascript|data):/i.test(url)) return "";
@@ -601,6 +637,7 @@
   }
 
   function fillShop(shop) {
+    applyBrandLogo(shop);
     var form = $("shop-form");
     if (!form) return;
     var bank = shop.bank || {};
@@ -1614,6 +1651,7 @@
   }
 
   function boot() {
+    loadPublicBrand();
     var root = $("admin-app");
     root.addEventListener("click", onClick);
     root.addEventListener("submit", function (event) {
