@@ -1021,8 +1021,7 @@
     return (
       '<form id="order-lookup" class="card" novalidate>' +
         "<h2>Tra cứu đơn</h2>" +
-        '<p class="muted">Mã dạng AB-XXXX. Có số điện thoại lúc đặt thì xem được chi tiết. Không nhập số thì chỉ thấy trạng thái và tổng tiền.</p>' +
-        '<label class="field">Mã đơn<input name="code" maxlength="12" autocomplete="off" autocapitalize="characters" value="' + esc(code || "") + '"></label>' +
+        '<label class="field">Mã đơn<input name="code" maxlength="12" autocomplete="off" autocapitalize="characters" placeholder="AB-XXXX" value="' + esc(code || "") + '"></label>' +
         '<p class="field-error" data-error="code"></p>' +
         '<label class="field">Số điện thoại<input name="phone" inputmode="tel" autocomplete="tel" maxlength="16"></label>' +
         '<p class="field-error" data-error="phone"></p>' +
